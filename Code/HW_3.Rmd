@@ -1,0 +1,179 @@
+# HW 3 Code Solutions
+Author: Apara Venkat
+
+```{r}
+library(hawkes)
+```
+
+
+# Question 2
+
+```{r}
+earthquakes <- read.table("japanearthquakes.txt", header=FALSE)
+earthquakes <- as.vector(earthquakes$V1)
+```
+
+```{r}
+Lambda <- length(earthquakes)
+
+lambda_func <- function(x, A, w, phi, B) {
+    exp(A*cos(w*x + phi) + B)
+}
+
+
+log_lik <- function(params, times) {
+    A <- params[1]
+    w <- params[2]
+    phi <- params[3]
+    B <- params[4]
+    if (phi < 0 || phi > pi) {
+        return(-Inf)
+    }
+    theta <- w * times + phi
+    
+    norm_constant <- integrate(lambda_func, lower=min(times), upper=max(times),
+                               A=A, w=w, phi=phi, B=B,
+                               subdivisions=1000)$value
+    
+    ell <- A*sum(cos(theta)) + B*length(times) - norm_constant
+    
+    return(ell)
+}
+
+params0 <- c(1, 1, 0, 0)
+
+res <- optim(params0, log_lik, times=earthquakes,
+             control=c("fnscale"=-1))
+res$par
+res$value
+
+A_mle <- res$par[1]
+w_mle <- res$par[2]
+phi_mle <- res$par[3]
+B_mle <- res$par[4]
+```
+
+
+```{r}
+T_start <- min(earthquakes)
+T_end <- max(earthquakes)
+Lambda_T <- integrate(lambda_func, lower=T_start, upper=T_end,
+                      A=A_mle, w=w_mle, phi=phi_mle, B=B_mle,
+                      subdivisions=1000)$value
+
+t_star <- rep(0, length(earthquakes))
+for (i in seq_along(earthquakes)) {
+    t_i <- earthquakes[i]
+    t_star[i] <- integrate(lambda_func, lower=T_start, upper=t_i,
+                      A=A_mle, w=w_mle, phi=phi_mle, B=B_mle,
+                      subdivisions=1000)$value
+}
+t_star <- t_star / Lambda_T
+```
+
+```{r}
+ks.test(t_star, "punif", min=0, max=1)
+
+
+unif_quantiles <- qunif(ppoints(length(t_star)), min=0, max=1)
+qqplot(unif_quantiles, t_star,
+       xlab="Theoretical Quantiles", ylab="Sample Quantiles",
+       main="Q-Q Plot")
+qqline(t_star, distribution=function(p) qunif(p, min=0, max=1))
+```
+
+
+
+
+
+# Question 3
+
+```{r}
+load("twitter.R")
+```
+
+```{r}
+num_immigrants <- length(points[[1]])
+num_descendants <- length(points[[2]]) + length(points[[3]]) + length(points[[4]])
+total_arrivals <- num_immigrants + num_descendants
+generations <- 3
+total_time <- max(points[[1]], points[[2]], points[[3]], points[[4]])
+    
+time_to_birth <- 0
+for (i in seq(2, length.out=generations)) {
+    for (child_id in seq_along(points[[i]])) {
+        parent_id <- parents[[i]][child_id]
+        time_to_birth <- time_to_birth + points[[i]][child_id] - points[[i-1]][parent_id]
+    }
+}
+
+mu_mle <- num_immigrants / total_time
+alpha_mle <- num_descendants / total_arrivals
+# alpha_mle <- num_descendants / (total_arrivals - length(points[[4]]))
+beta_mle <- num_descendants / time_to_birth
+
+cat("mu_hat =", mu_mle, "\n")
+cat("alpha_hat =", alpha_mle, "\n")
+cat("beta_hat =", beta_mle, "\n")
+
+var_alpha <- alpha_mle * (1 - alpha_mle)
+
+z_error <- qnorm(0.975) * sqrt(var_alpha) / sqrt(total_time)
+CI <- c(alpha_mle - z_error, alpha_mle + z_error)
+cat("CI for alpha = (", CI[1], ",", CI[2], ")\n")
+```
+
+
+```{r}
+times <- c(points[[1]], points[[2]], points[[3]], points[[4]])
+times <- sort(times)
+
+log_lik_wrapper <- function(params, data) {
+    mu <- params[1]
+    alpha <- params[2]
+    beta <- params[3]
+    eta <- alpha * beta
+    # if (alpha*beta > beta || alpha <= 0) {
+    #     return(-Inf)
+    # }
+    if (alpha <= 0 || beta <= 0) {
+        return(Inf)
+    }
+    
+    data <- sort(data)
+    n <- length(data)
+    
+    term1 <- -mu * data[n]
+    term2 <- 0
+    term3 <- 0
+    for (i in seq_len(n)) {
+        term2 <- term2 + exp(-beta * (data[n] - data[i])) - 1
+        A_i <- 0
+        if (i > 1) {
+            for (j in seq_len(i-1)) {
+                # print(data[i] - data[j])
+                A_i <- A_i + exp(-beta * (data[i] - data[j]))   
+            }
+        }
+        term3 <- term3 + log(mu + eta * A_i)
+    }
+    term2 <- term2 * alpha
+    ell <- term1 + term2 + term3
+    
+    # ell <- likelihoodHawkes(mu, alpha*beta, beta, data)
+    return(-ell)
+}
+
+params0 <- c(mu_mle, alpha_mle, beta_mle)
+
+res <- optim(params0, log_lik_wrapper, data=times)#, control=("fnscale"=-1))
+mle_params <- res$par
+
+cat("\n")
+cat("mu_hat =", mle_params[1], "\n")
+cat("alpha_hat =", mle_params[2], "\n")
+cat("beta_hat =", mle_params[3], "\n")
+```
+
+
+

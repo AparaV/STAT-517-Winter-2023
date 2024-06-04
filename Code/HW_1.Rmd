@@ -1,0 +1,103 @@
+# HW 1 Code Solutions
+Author: Apara Venkat
+
+```{r}
+source("helper_functions.R")
+source("hw1_functions.R")
+```
+
+
+
+
+
+## Question 3
+
+
+```{r}
+set.seed(3)
+
+grid_rows <- 32
+grid_cols <- 32
+b_values <- seq(0, 1.5, by=0.1)
+K <- 2
+if (K == 2) {
+    colors <- c(1, -1)
+} else {
+    colors <- seq(1, K)
+}
+
+X_mode <- c()
+
+for (i in seq_along(b_values)) {
+    b <- b_values[i]
+    
+    initial_state <- sample(colors, size=grid_rows*grid_cols, replace=T)
+    X_0 <- matrix(initial_state, ncol=grid_cols, nrow=grid_rows)
+    X_out <- swendsen_wang(X_0, b, 0, K, iters=100, burnin=10)
+    
+    X_mode_i <- find_marginal_mode(X_out)
+    X_mode <- c(X_mode, list(X_mode_i))
+}
+```
+
+
+```{r plot}
+par(mfrow=c(4,4))
+for (i in seq_along(X_mode)) {
+    image(X_mode[[i]], col=gray.colors(2, start=1, end=0))
+}
+```
+
+# Question 4
+
+```{r read dataset}
+df <- read.table("Data/set7.txt", header=F)
+df <- df[, -1]
+colnames(df) <- c("x", "y", "vigor", "diameter", "area", "age", "infected")
+
+# Feature engineering based on Preisler (1993)
+# https://www.jstor.org/stable/2986328
+
+n <- nrow(df)
+A <- rep(0, n)
+for (i in seq_len(n)) {
+    for (j in seq_len(n)) {
+        if (i != j) {
+            d_ij_sq <- (df$x[i] - df$x[j])^2 + (df$y[i] - df$y[j])^2
+            A[i] <- A[i] + df$infected[j] * df$diameter[i] * df$diameter[j] / d_ij_sq
+            # A[i] <- A[i] + df$infected[i] / sqrt(d_ij_sq)
+            
+        }
+    }
+}
+df$A <- A
+```
+
+```{r model fitting}
+model <- glm(infected ~ A + log(diameter) + vigor + age, data=df,
+             family=binomial(link="logit"))
+
+coef(summary(model))
+```
+
+```{r}
+# sample points
+num_samples <- 1000
+estimates <- matrix(0, nrow=num_samples, ncol=5)
+p <- predict(model, type="response")
+
+for (i in seq_len(num_samples)) {
+    y_t <- rbinom(n, 1, p)
+    
+    model_i <- glm(y_t ~ A + log(diameter) + vigor + age, data=df,
+             family=binomial(link="logit"))
+    estimates[i, ] <- coef(model_i)
+}
+
+# The standard errors are pretty close to the ones estimated by the GLM
+# Results agree with Preisler (1993)
+apply(estimates, 2, sd)
+```
+
+
+

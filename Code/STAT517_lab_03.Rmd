@@ -1,0 +1,251 @@
+# STAT 517 - Lab 03
+### Feb 23, 2023
+
+```{r}
+library(ks)
+library(maps)
+library(hawkesbow)
+```
+
+
+# Question 1
+
+```{r}
+# Load data into a vector called `constance_freezes`
+load("constance_freezes.R")
+
+print(constance_freezes)
+```
+
+## Ignoring censored data
+
+```{r}
+t <- constance_freezes[2:length(constance_freezes)] - 875
+N <- length(t)
+total_time <- 1976 - 875
+
+lambda_mle <- N / t[N]
+var_mle <- lambda_mle / total_time
+
+cat("MLE =", lambda_mle, "\n")
+cat("Variance =", var_mle, "\n")
+```
+
+## Including censored data
+
+```{r}
+lambda_mle_1 <- (N - 1) / total_time
+var_mle_1 <- lambda_mle_1^2 / (lambda_mle * total_time - 1)
+
+cat("MLE (censored) =", lambda_mle_1, "\n")
+cat("Variance (censored) =", var_mle_1, "\n")
+```
+
+## Kolmogorov-Smirnov Test
+
+```{r}
+# Says that we cannot reject the null
+ks.test(t, "punif", min=0, max=total_time)
+```
+
+## Q-Q plot
+
+```{r}
+unif_quantiles <- qunif(ppoints(length(t)), min=0, max=total_time)
+qqplot(unif_quantiles, t,
+       xlab="Theoretical Quantiles", ylab="Sample Quantiles",
+       main="Q-Q Plot")
+qqline(t,
+       distribution=function(p) qunif(p, min=0, max=total_time))
+```
+
+
+
+# Question 2
+
+```{r}
+# Load data into a dataframe called `myscallops10`
+load("myscallops.R")
+
+print(head(myscallops10))
+```
+
+```{r}
+par(mar=c(1, 1, 1, 1) + 0.2)
+map("usa", xlim=c(-74,-71), ylim=c(38.2,41.5), fill=TRUE)
+points(myscallops10$long, myscallops10$lat, cex=0.75, pch=20)
+```
+
+
+```{r}
+cov <- 0
+bandwidth <- matrix(c(c(1e-1, cov),
+                      c(cov, 1e-1)),
+                    nrow=2, byrow=F)
+
+k_est <- ks::kde(myscallops10)#, bandwidth)
+# output
+n <- nrow(myscallops10)
+Lambda <- n
+rho <- exp(-Lambda) / factorial(n)
+
+intensity_est <- k_est$estimate * rho^(-1/n)
+
+image(k_est$eval.points[[1]], k_est$eval.points[[2]], k_est$estimate,
+      col = viridis::viridis(20), xlab = "x", ylab = "y")
+points(k_est$x, pch=20)
+
+contour(k_est$eval.points[[1]], k_est$eval.points[[2]], k_est$estimate,
+        nlevels=10)
+points(k_est$x, pch=20)
+```
+
+```{r}
+# par(mar=c(1, 1, 1, 1) + 0.2)
+map("usa", xlim=c(-74,-71), ylim=c(38.2,41.5), fill=TRUE)
+points(myscallops10$long, myscallops10$lat, cex=0.75, pch=20)
+contour(k_est$eval.points[[1]], k_est$eval.points[[2]], k_est$estimate,
+        nlevels=10,
+        add=T)
+```
+
+
+# Question 3
+
+```{r}
+
+simulate_hawkes_powerlaw <- function(mu, p, k, c, alpha, time) {
+    num_immigrants <- rpois(1, mu*time)
+    population <- runif(num_immigrants, min=0, max=time)
+    events <- population
+    while (length(population) > 0) {
+        arrival <- population[1]
+        population <- population[-1]
+        
+        num_desc <- rpois(1, alpha)
+        for (i in seq_len(num_desc)) {
+            # See https://cran.r-project.org/web/packages/hawkesbow/hawkesbow.pdf
+            t_i <- rpowerlaw(1, shape=1, scale=c)
+            t_i <- arrival + t_i
+            if (t_i < time) {
+                events <- c(events, t_i)
+                population <- c(population, t_i)
+            }
+        }
+    }
+    return(events)
+}
+
+calculate_intensity <- function(mu, p, k, c, data, time, n=1000) {
+    data <- sort(data)
+    x <- seq(0, time, length.out=n)
+    lambda <- rep(mu, n)
+    for (i in seq_len(n)) {
+        for (j in seq_along(data)) {
+            if (data[j] < x[i]) {
+                lambda[i] <- lambda[i] + k / (c + x[i] - data[j])^p
+            }
+        }
+    }
+    return(list(x, lambda))
+}
+
+
+log_lik <- function(params, data, time) {
+    mu <- params[1]
+    p <- params[2]
+    k <- params[3]
+    c <- params[4]
+    
+    if (p <= 1 || c <= 0) {
+        return(-Inf)
+    }
+    
+    # data <- sort(data)
+    n <- length(data)
+    
+    time <- max(data)
+    
+    term1 <- -mu * time
+    term2 <- 0
+    term3 <- 0
+    for (i in seq_along(data)) {
+        Ai <- 0
+        if (i > 1) {
+            for (j in seq_len(i-1)) {
+                Ai <- Ai + k / (c + data[i] - data[j])^p
+            }
+        }
+        term2 <- term2 + log(mu + Ai)
+        term3 <- term3 - k / (1 - p) * ((c + time - data[i])^(1-p) - c^(1-p))
+    }
+    
+    ell <- term1 + term2 + term3
+    return(ell)
+}
+```
+
+```{r}
+set.seed(0)
+
+mu <- 1
+p <- 2
+k <- 2
+c <- 1
+
+total_time <- 100
+alpha <- 0.5
+
+samples <- simulate_hawkes_powerlaw(mu, p, k, c, alpha, total_time)
+samples <- sort(samples)
+
+intensity <- calculate_intensity(mu, p, k, c, samples, total_time)
+
+plot(intensity[[1]], intensity[[2]], type="l",
+     main="Realized intensity",
+     xlab="Time", ylab="Lambda")
+```
+
+```{r}
+
+params0 <- c(1, 2, 0.5, 1)
+
+res <- optim(params0, log_lik, data=samples, time=total_time,
+             control=c("fnscale"=-1))
+
+res$par
+
+res_hawkesbow <- hawkesbow::mle(samples, kern="powerlaw", end=total_time)
+print(res_hawkesbow$par)
+```
+
+```{r}
+set.seed(1)
+
+# Generate data and estimate using off-the-shelf implementations
+new_samples <- hawkesbow::hawkes(total_time, fun=mu, repr=alpha,
+                                family="powerlaw", shape=1, scale=c)
+
+
+new_intensity <- calculate_intensity(mu, p, k, c, new_samples$p, total_time)
+
+plot(new_intensity[[1]], new_intensity[[2]], type="l",
+     main="Realized intensity",
+     xlab="Time", ylab="Lambda")
+
+
+hawkesbow_est <- hawkesbow::mle(new_samples$p, kern="powerlaw", end=total_time)
+print(hawkesbow_est$par)
+
+our_est <- optim(params0, log_lik, data=new_samples$p, time=total_time,
+                 control=c("fnscale"=-1))
+
+our_est$par
+```
+
+
+
+
+
+
+

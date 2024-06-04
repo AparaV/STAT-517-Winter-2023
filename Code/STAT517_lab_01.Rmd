@@ -1,0 +1,569 @@
+# STAT 517 - Lab 01
+### Jan 17, 2023
+
+```{r}
+library(MCMCpack)
+library(nleqslv)
+
+source("helper_functions.R")
+source("hw1_functions.R")
+```
+
+
+# Question 1
+
+```{r read data}
+plant_data <- read.table("Data/set5.txt", header=F, sep=" ", col.names=c(1:60), fill=T)
+plant_data <- as.matrix(plant_data)
+plants <- matrix(-1, nrow=24, ncol=60)
+for (i in seq_len(24)) {
+    plants[i, plant_data[i, ]] <- 1
+}
+m <- nrow(plants)
+n <- ncol(plants)
+
+# Transpose the X matrix to reproduce plot in Figure 4.3
+image(t(plants), col=gray.colors(2, start=1, end=0))
+```
+
+```{r sufficient statistics}
+calculate_suff_stat <- function(X) {
+    m <- nrow(X)
+    n <- ncol(X)
+    t1 <- t2 <- 0
+    # Be careful. We need to ignore the boundary when calculating the sufficient
+    # statistics!
+    if (m <= 2 || n <= 2) {
+        return(list(t1=t1, t2=t2))
+    }
+    t1 <- sum(X[2:(m-1), 2:(n-1)])
+    for (i in seq(2, m-1)) {
+        for (j in seq(2, n-1)) {
+            t2 <- t2 + X[i, j] * (X[i+1, j] + X[i-1, j] + X[i, j-1] + X[i, j+1])
+        }
+    }
+    return(c(t1, t2))
+}
+
+suff_stat <- calculate_suff_stat(plants)
+t1 <- suff_stat[1]
+t2 <- suff_stat[2]
+
+# Our t2 is half of that in the textbook because we are not double counting
+# interactions between neighbors. The author double counts these when reporting t2
+cat("t1 = ", t1, ", t2 = ", t2, "\n")
+```
+
+
+```{r mle}
+set.seed(3)
+
+# Book says phi_2 = 0.5. Here we use phi_2 = 1 but do not double count
+# interaction terms.
+phi <- c(0, 1)
+
+samples_SW <- swendsen_wang(plants, phi[2], phi[1], K=2, iters=500, burnin=100)
+n_samples <- length(samples_SW)
+
+t_samples <- matrix(0, nrow=n_samples, ncol=2)
+for (i in seq_len(n_samples)) {
+    t_i <- calculate_suff_stat(samples_SW[[i]])
+    t_samples[i, ] <- t_i
+}
+
+# Correct for double counting interaction terms
+t_samples[, 2] <- t_samples[, 2] / 2
+
+# Note that the scale in Figure 4.6 is incorrect. The horizontal axis should be
+# multiplied by 2 since they are double counting interactions.
+plot(t_samples[, 2], t_samples[, 1], xlab="t2", ylab="t1", cex=0.5)
+```
+
+
+```{r functions for likelihood and scores}
+calculate_Z_ratio <- function(samples, theta, phi) {
+    N <- nrow(samples)
+    frac <- 0
+    for (i in seq_len(N)) {
+        t <- samples[i, ]
+        frac <- frac + exp(t %*% (theta - phi))
+    }
+    res <- frac / N
+    return(res[1, 1])
+}
+
+
+calculate_Z_partial <- function(samples, theta, phi, k) {
+    N <- nrow(samples)
+    frac <- 0
+    for (i in seq_len(N)) {
+        t <- samples[i, ]
+        frac <- frac + t[k] * exp(t %*% (theta - phi))
+    }
+    res <- frac / N
+    return(res[1, 1])
+}
+
+
+calculate_Z_partial_2 <- function(samples, theta, phi, k) {
+    N <- nrow(samples)
+    frac <- 0
+    for (i in seq_len(N)) {
+        t <- samples[i, ]
+        frac <- frac + t[k]^2 * exp(t %*% (theta - phi))
+    }
+    res <- frac / N
+    return(res[1, 1])
+}
+
+calculate_Z_partial_mixed <- function(samples, theta, phi) {
+    N <- nrow(samples)
+    frac <- 0
+    for (i in seq_len(N)) {
+        t <- samples[i, ]
+        frac <- frac + t[1] * t[2] * exp(t %*% (theta - phi))
+    }
+    res <- frac / N
+    return(res[1, 1])
+}
+
+gradient_mle <- function(theta, t, phi, samples) {
+    grad <- c(0, 0)
+    constant <- calculate_Z_ratio(samples, theta, phi)
+    grad[1] <- t[1] - calculate_Z_partial(samples, theta, phi, 1) / constant
+    grad[2] <- t[2] - calculate_Z_partial(samples, theta, phi, 2) / constant
+    return(grad)
+}
+
+log_likelihood <- function(theta, t, phi, samples) {
+    constant <- calculate_Z_ratio(samples, theta, phi)
+    lambda <- t %*% (theta - phi) - log(constant)
+    return(lambda)
+}
+```
+
+```{r}
+theta_0 <- phi
+
+# Maximize log likelihood
+cat("Maximizing likelihood: ")
+out1 <- optim(theta_0, log_likelihood, gradient_mle, suff_stat, phi, t_samples,
+             method="BFGS", control=c(fnscale=-1))
+theta_est1 <- out1$par
+cat(theta_est1, "\n")
+
+# Minimizing sum of squares of scores
+fn2 <- function(theta, t, phi, samples) {
+    crossprod(gradient_mle(theta, t, phi, samples))
+}
+cat("Minimizing sum of squares of scores: ")
+out2 <- optim(theta_0, fn2, gr=NULL, suff_stat, phi, t_samples)
+theta_est2 <- out2$par
+cat(theta_est2, "\n")
+
+# Solving score equations
+cat("Solving score equations: ")
+out3 <- nleqslv(theta_0, gradient_mle, jac=NULL, suff_stat, phi, t_samples,
+                method="Newton",
+                control=list(allowSingular=T))
+theta_est3 <- out3$x
+cat(theta_est3, "\n")
+
+# The above estimated theta is at the scale of suff_stat
+```
+
+```{r covariance matrix}
+ratio <- calculate_Z_ratio(t_samples, theta_est3, phi)
+partial_1 <- calculate_Z_partial(t_samples, theta_est3, phi, 1)
+partial_2 <- calculate_Z_partial(t_samples, theta_est3, phi, 2)
+partial2_1 <- calculate_Z_partial_2(t_samples, theta_est3, phi, 1)
+partial2_2 <- calculate_Z_partial_2(t_samples, theta_est3, phi, 2)
+partial_m <- calculate_Z_partial_mixed(t_samples, theta_est3, phi)
+
+I <- matrix(0, nrow=2, ncol=2)
+I[1, 1] <- partial2_1 * ratio - partial_1^2
+I[2, 2] <- partial2_2 * ratio - partial_2^2
+I[1, 2] <- I[2, 1] <- partial_m * ratio - partial_1 * partial_2
+I <- I / ratio^2
+
+cov_mle <- solve(I)
+print(cov_mle)
+
+cov_mle_finite <- cov_mle / (m*n)
+print(cov_mle_finite)
+
+```
+
+
+
+
+## Part (b)
+
+
+
+```{r}
+X <- c(t(plants))
+m <- nrow(plants)
+n <- ncol(plants)
+num_nodes <- m*n
+A <- lattice_to_adjacency(m, n)
+
+m_vec <- A %*% X
+```
+
+```{r assume there is an external field}
+PL_eq <- function(theta, X, m_vec) {
+    B <- theta[1]
+    beta <- theta[2] / 2
+    Q <- 0
+    R <- 0
+    n <- length(m_vec)
+    for (i in seq_len(n)) {
+        angle <- beta * m_vec[i] + B
+        term <- X[i] - tanh(angle)
+        R <- R + term
+        Q <- Q + m_vec[i]*term
+    }
+    return(c(Q, R))
+}
+
+out_PL <- nleqslv(c(0, 0), PL_eq, jac=NULL, X, m_vec,
+                  method="Newton",
+                  control=list(allowSingular=T))
+theta_est_PL <- out_PL$x
+cat("MPLE: ", theta_est_PL, "\n")
+
+m_avg <- mean(m_vec)
+T_n <- mean((m_vec - m_avg)^2)
+```
+
+
+```{r covariance matrix}
+estimate_I <- function(beta, B, m, n, n_samples=100, burnin=10) {
+    b <- 2 * beta
+    h <- B
+    X_init <- sample(c(-1, 1), m*n, replace=T)
+    X_init <- matrix(X_init, nrow=m, ncol=n)
+    X_samples <- swendsen_wang(X_init, b, h, 2, n_samples+burnin, burnin)
+    
+    A <- lattice_to_adjacency(m, n)
+    I <- matrix(0, nrow=2, ncol=2)
+    for (k in seq_len(n_samples)) {
+        X_k <- c(t(X_samples[[k]]))
+        D_k <- matrix(0, nrow=2, ncol=2)
+        m_vec <- A %*% X_k
+        for (i in seq_along(m_vec)) {
+            denom <- cosh(beta * m_vec[i] + B)^2
+            var1 <- m_vec[i]^2 / denom
+            var2 <- 1 / denom
+            sigma <- m_vec[i] / denom
+            D_k_i <- matrix(c(c(var1, sigma), c(sigma, var2)), nrow=2, ncol=2)
+            D_k <- D_k + D_k_i
+        }
+        I <- I + D_k #/ (m*n)
+    }
+    I <- I / n_samples
+    
+    return(I)
+}
+
+set.seed(3)
+
+# Note that this depends on the size of the lattice!
+# Instead, we can also look at the variance scaled to the number of nodes in lattice
+# See Seymour (2001) Estimating the Variance of the Maximum Pseudo-Likelihood Estimator
+# https://www.jstor.org/stable/4356156
+I <- estimate_I(2*theta_est_PL[2], theta_est_PL[1], 24, 60, n_samples=10)
+
+cov_asym <- solve(I)
+print(cov_asym)
+
+cov_finite_naive <- cov_asym / (m*n)
+cov_finite_corrected <- cov_finite_naive / (T_n^2)
+
+print(cov_finite_naive)
+print(cov_finite_corrected)
+```
+
+
+```{r assume there is no external field}
+PL_eq_no_field <- function(theta, X, m_vec) {
+    beta <- theta[2] / 2
+    Q <- 0
+    n <- length(m_vec)
+    for (i in seq_len(n)) {
+        angle <- beta * m_vec[i]
+        term <- X[i] - tanh(angle)
+        Q <- Q + m_vec[i]*term
+    }
+    return(c(Q, 0))
+}
+
+out_PL2 <- nleqslv(c(0, 0), PL_eq_no_field, jac=NULL, X, m_vec,
+                  method="Newton",
+                  control=list(allowSingular=T))
+theta_est_PL2 <- out_PL2$x
+cat("MPLE: ", theta_est_PL2, "\n")
+
+m_avg <- mean(m_vec)
+T_n <- mean((m_vec - m_avg)^2)
+```
+
+```{r variance of MPLE in no field}
+set.seed(3)
+
+# Note that this depends on the size of the field!
+# Instead, we can look at the variance scaled to the size of the field
+I_mple_2 <- estimate_I(2*theta_est_PL2[2], 0, 24, 60, n_samples=10)
+
+var_asym_mple2 <- solve(I_mple_2)[1, 1]
+print(var_asym_mple2)
+
+var_mple_finite_naive <- var_asym_mple2 / (m*n)
+
+print(var_mple_finite_naive)
+```
+
+
+
+# Question 2
+
+
+```{r samplers for each parameter}
+
+# The conditional probability distribution for a Potts model
+# See notes for derivation
+cond_prob <- function(Z, i, j, phi, K) {
+    prob <- rep(0, K)
+    neighbors <- get_neighbors(Z, i, j)
+    for (k in seq_len(K)) {
+        N_k <- length(which(neighbors == k))
+        prob[k] <- exp(phi * N_k)
+    }
+    prob <- prob / sum(prob)
+    return(prob)
+}
+
+
+# Sample a single node of a regular lattice from the posterior
+sample_Z_i <- function(Y, theta, sigma, Z, phi, ix, iy, K) {
+    Y_i <- Y[ix, iy]
+    Z_cond_prob <- cond_prob(Z, ix, iy, phi, K)
+    Z_post_prob <- rep(0, K)
+    for (k in seq_len(K)) {
+        Z_post_prob[k] <- dnorm(Y_i, theta[k], sigma[k]) * Z_cond_prob[k]
+    }
+    Z_post_prob <- Z_post_prob / sum(Z_post_prob)
+    Z_i <- sample(seq_len(K), 1, prob=Z_post_prob)
+    return(Z_i)
+}
+
+# Sequentially sample the entire lattice from the posterior
+# Use Metropolis-Hastings with a gaussian proposal distribution
+# See notes for details
+sample_Z <- function(Y, theta, sigma, Z, phi, K) {
+    N <- nrow(Z)
+    for (i in seq_len(N)) {
+        for (j in seq_len(N)) {
+            Z[i, j] <- sample_Z_i(Y, theta, sigma, Z, phi, i, j, K)
+        }
+    }
+    return(Z)
+}
+
+# Sample a single mean from the posterior
+sample_theta_k <- function(Y, theta, sigma, Z, k, lambda) {
+    Y_Zk <- Y[which(Z == k, arr.ind=T)]
+    theta_k <- theta[k]
+    sigma_k <- sigma[k]
+    
+    theta_k2 <- rnorm(1, theta_k, 3)
+    
+    # Work with log likelihoods to avoid numerical errors
+    post_theta_k <- sum(dnorm(Y_Zk, theta_k, sigma_k, log=T)) +
+        dnorm(theta_k, 0, lambda, log=T)
+    post_theta_k2 <- sum(dnorm(Y_Zk, theta_k2, sigma_k, log=T)) +
+        dnorm(theta_k2, 0, lambda, log=T)
+    prob_ratio <- post_theta_k2 - post_theta_k
+    
+    acceptance_ratio <- min(1, exp(prob_ratio))
+    u <- runif(1, 0, 1)
+    if (u <= acceptance_ratio) {
+        theta_k <- theta_k2
+    }
+    return(theta_k)
+}
+
+# Sequentially sample all the means from the posterior
+sample_theta <- function(Y, theta, sigma, Z, K, lambda) {
+    for (k in seq_len(K)) {
+        theta[k] <- sample_theta_k(Y, theta, sigma, Z, k, lambda)
+    }
+    return(theta)
+}
+
+# Sample a single standard deviation from the posterior
+# Use Metropolis-Hastings with a Gamma proposal distribution for the variance
+# See notes for details
+sample_sigma_k <- function(Y, theta, sigma, Z, k, alpha, beta) {
+    Y_Zk <- Y[which(Z == k, arr.ind=T)]
+    theta_k <- theta[k]
+    sigma_k <- sigma[k]
+    
+    # We sample and work with variances in this function.
+    # But we work with standard deviations in the larger scheme of things.
+    # So we need to be careful with the proposing a standard deviation and
+    # calculating the prior density for the variance
+    sigma_k2 <- sqrt(rgamma(1, shape=sigma_k^2, rate=1))
+    
+    # Work with log likelihoods to avoid numerical errors
+    post_sigma_k <- sum(dnorm(Y_Zk, theta_k, sigma_k, log=T)) +
+        log(dinvgamma(sigma_k^2, alpha, 1/beta))
+    post_sigma_k2 <- sum(dnorm(Y_Zk, theta_k, sigma_k2, log=T)) +
+        log(dinvgamma(sigma_k2^2, alpha, 1/beta))
+    prob_ratio <- (post_sigma_k2 + dgamma(sigma_k2^2, sigma_k^2, log=T)) -
+        (post_sigma_k + dgamma(sigma_k^2, sigma_k2^2, log=T))
+    
+    acceptance_ratio <- min(1, exp(prob_ratio))
+    u <- runif(1, 0, 1)
+    if (u <= acceptance_ratio) {
+        sigma_k <- sigma_k2
+    }
+    return(sigma_k)
+}
+
+# Sequentially sample all the standard deviations from the posterior
+sample_sigma <- function(Y, theta, sigma, Z, K, alpha, beta) {
+    for (k in seq_len(K)) {
+        sigma[k] <- sample_sigma_k(Y, theta, sigma, Z, k, alpha, beta)
+    }
+    return(sigma)
+}
+```
+
+
+```{r gibbs sampler}
+gibbs_sampler <- function(Y, theta, sigma, Z, phi, K, lambda, alpha, beta,
+                          niter=10000, burnin=1000, estimate_phi=F) {
+    N <- nrow(Y)
+    n_samples <- niter - burnin
+    Theta <- Sigma <- matrix(NA, nrow=n_samples, ncol=K)
+    Z_samples <- Phi <- rep(NA, n_samples)
+    
+    for (t in seq_len(niter)) {
+        if (t %% 100 == 0) {
+            cat("Iter", t, "/", niter, "\n")
+        }
+        Z <- sample_Z(Y, theta, sigma, Z, phi, K)
+        theta <- sample_theta(Y, theta, sigma, Z, K, lambda)
+        sigma <- sample_sigma(Y, theta, sigma, Z, K, alpha, beta)
+        
+        # HW 1: Complete this function for sampling phi from the posterior
+        if (estimate_phi) {
+            phi <- sample_phi(Z, K, phi, alpha, beta)
+        }
+        
+        if (t > burnin) {
+            i <- t - burnin
+            Theta[i, ] <- theta
+            Sigma[i, ] <- sigma
+            Phi[i] <- phi
+            Z_samples[i] <- list(Z)
+        }
+    }
+    
+    params <- list(theta=Theta, sigma=Sigma, phi=Phi, Z=Z_samples)
+    return(params)
+}
+```
+
+```{r read data}
+image_df <- read.csv("Data/imageseg.txt", header=FALSE, sep=" ")
+Y <- as.matrix(image_df)
+n <- nrow(Y)*ncol(Y)
+
+image(t(Y), col=hcl.colors(n, palette = "Grays"))
+```
+
+```{r model fitting}
+# Fixed parameters
+K <- 3
+
+# Sample the regular lattice at random
+N <- nrow(Y)
+Z <- sample(seq_len(K), N*N, replace=T)
+Z <- matrix(Z, nrow=N, ncol=N)
+
+# Estimate theta and sigma based on the sampled lattice
+# This works better as an initial condition rather than sampling at random
+theta <- rep(mean(Y), 3)
+sigma <- rep(sd(Y), 3)
+
+
+# Prior parameters for the mean and variance
+lambda <- 10
+alpha <- 1
+beta <- 1
+
+```
+
+```{r phi = 3}
+set.seed(3)
+
+phi <- 3
+# Run Gibbs sampling
+output <- gibbs_sampler(Y, theta, sigma, Z, phi, K, lambda, alpha, beta,
+                        niter=1000, burnin=500)
+
+
+Z_mode <- find_marginal_mode(output$Z)
+```
+
+
+```{r}
+colMeans(output$theta)
+colMeans(output$sigma)
+
+image(t(Z_mode), col=hcl.colors(n, "Grays"))
+```
+
+```{r phi = 0}
+phi <- 0
+
+# Run Gibbs sampling
+output2 <- gibbs_sampler(Y, theta, sigma, Z, phi, K, lambda, alpha, beta,
+                        niter=1000, burnin=500)
+
+Z_mode2 <- find_marginal_mode(output2$Z)
+```
+
+```{r}
+colMeans(output2$theta)
+colMeans(output2$sigma)
+
+image(t(Z_mode2), col=hcl.colors(n, "Grays"))
+```
+
+
+```{r estimate phi}
+set.seed(3)
+
+# Run Gibbs sampling
+output <- gibbs_sampler(Y, theta, sigma, Z, phi, K, lambda, alpha, beta,
+                        niter=50, burnin=10, estimate_phi=T)
+
+
+Z_mode <- find_marginal_mode(output$Z)
+```
+
+
+```{r}
+colMeans(output$theta)
+colMeans(output$sigma)
+mean(output$phi)
+
+image(t(Z_mode), col=hcl.colors(n, "Grays"))
+```
+
+
+

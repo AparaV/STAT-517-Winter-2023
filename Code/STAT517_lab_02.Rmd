@@ -1,0 +1,263 @@
+# STAT 517 - Lab 02
+### Feb 02, 2023
+
+```{r}
+library(ggplot2)
+
+source("ctmc_simulator.R")
+```
+
+
+# Find transition probabilities
+
+```{r}
+R_matrix <- function(lambda, mu, s, c) {
+    n <- c+1
+    R <- matrix(0, nrow=n, ncol=n)
+    for (i in seq_len(n)) {
+        if (i == 1) {
+            R[1, 1] <- -lambda
+            R[1, 2] <- lambda
+        }
+        else if (i == n) {
+            R[n, n-1] <- s*mu
+            R[n, n] <- -s*mu
+        }
+        else {
+            R[i, i+1] <- lambda
+            R[i, i-1] <- min((i-1)*mu, s*mu)
+            R[i, i] <- -(R[i, i+1] + R[i, i-1])
+        }
+    }
+    return(R)
+}
+```
+
+```{r}
+lambda <- 2
+mu <- 1
+servers <- 2
+customers <- 4
+t <- 3
+
+R <- R_matrix(lambda, mu, servers, customers)
+print(R)
+
+# As k goes to infinity, our estimate starts to converge
+Pt_10 <- estimate_transition_matrix(R, t, 10)
+Pt_20 <- estimate_transition_matrix(R, t, 20)
+Pt_50 <- estimate_transition_matrix(R, t, 50)
+Pt_70 <- estimate_transition_matrix(R, t, 70)
+Pt_100 <- estimate_transition_matrix(R, t, 100)
+Pt_200 <- estimate_transition_matrix(R, t, 200)
+Pt_1000 <- estimate_transition_matrix(R, t, 1000)
+
+# Find the Frobenius norm
+diff1 <- norm(Pt_10 - Pt_20, type="F")
+diff2 <- norm(Pt_20 - Pt_50, type="F")
+diff3 <- norm(Pt_50 - Pt_70, type="F")
+diff4 <- norm(Pt_70 - Pt_100, type="F")
+diff5 <- norm(Pt_100 - Pt_200, type="F")
+diff6 <- norm(Pt_200 - Pt_1000, type="F")
+
+cat("Between k = 10 and k = 20:", diff1, "\n")
+cat("Between k = 20 and k = 50:", diff2, "\n")
+
+# See the spike in errors here
+# Investigating Pt_70 reveals that we ran into a numerical error
+# as Pt_70 is no longer a probability transition matrix!
+cat("Between k = 50 and k = 70:", diff3, "\n")
+
+print(Pt_70)
+```
+
+
+```{r}
+# Numerical issue: If k is too large, n = 2^k is very large. So Pt = I
+Pt_large <- estimate_transition_matrix(R, t, 1500)
+
+cat("k = 1500 \n")
+print(Pt_large)
+```
+
+
+
+```{r}
+stationary_dist <- function(lambda, mu, s, c) {
+    n <- c+1
+    p <- rep(1, n)
+    for (i in seq(2, n)) {
+        if (i <= s) {
+            p[i] <- 1 / factorial(i) * (lambda / mu)^i
+        }
+        else {
+            p[i] <- 1 / (s^(i-s) * factorial(s)) * (lambda / mu)^i
+        }
+    }
+    p <- p / sum(p)
+    return(p)
+}
+```
+
+```{r}
+s <- c(1, 2, 3, 4)
+c <- 6
+
+num_ratios <- 100
+lambda <- 1
+mu <- seq(0.1, 15, length.out=num_ratios)
+
+p_no_wait <- matrix(0, nrow=num_ratios, ncol=length(s)+1)
+p_no_wait[, 1] <- mu
+
+for (i in seq_along(s)) {
+    s_i <- s[i]
+    for (j in seq_along(mu)) {
+        mu_j <- mu[j]
+        p <- stationary_dist(lambda, mu_j, s_i, c)
+        p_no_wait[j, i+1] <- sum(p[1:(s_i-1)])
+    }
+}
+```
+
+```{r}
+plotting_data <- as.data.frame(p_no_wait)
+colnames(plotting_data) <- c("ratio", "s1", "s2", "s3", "s4")
+
+p <- ggplot(plotting_data, aes(x = ratio))
+
+p + theme_classic(base_size=15) + theme(plot.title = element_text(hjust = 0.5),
+    plot.margin=margin(10, 50, 10, 10)) +
+    geom_line(aes(y = s1, color="s = 1"), size=0.5) +
+    geom_line(aes(y = s2, color="s = 2"), size=0.5) +
+    geom_line(aes(y = s3, color="s = 3"), size=0.5) +
+    geom_line(aes(y = s4, color="s = 4"), size=0.5) +
+    xlab("mu / lambda")+
+    ylab("P(wait time = 0)") +
+    scale_x_continuous(expand = c(0, 0), limits = c(0, max(mu))) +
+    scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
+    labs(colour="", fill="") +
+    scale_color_manual(values=c("limegreen", "black", "dodgerblue", "deeppink3")) +
+    theme(legend.position="right", legend.key=element_blank())
+```
+
+
+
+```{r}
+set.seed(0)
+
+# Think about what would happen if we change lambda and mu.
+# Now run simulations with different values of lambda and mu
+# Does the output Xt match with your expectations?
+lambda <- 5
+mu <- 1
+s <- 3
+c <- 5
+
+X0 <- 1
+R <- R_matrix(lambda, mu, s, c)
+time <- 10
+sim_res <- simulate_ctmc(X0, R, time)
+
+Xt <- sim_res$states
+sojourn_times <- sim_res$times
+
+print(Xt)
+# print(sojourn_times)
+```
+
+```{r}
+set.seed(0)
+
+lambda <- 4
+mu <- 1
+s <- 3
+c <- 5
+
+X0 <- 1
+R <- R_matrix(lambda, mu, s, c)
+time <- 300
+sim_res <- simulate_ctmc(X0, R, time)
+
+Xt <- sim_res$states
+sojourn_times <- sim_res$times
+# 
+# print(Xt)
+# print(sojourn_times)
+```
+
+```{r mle}
+
+Nt <- matrix(0, nrow=c+1, ncol=c+1)
+At <- rep(0, c+1)
+num_transitions <- length(Xt)
+for (idx in seq_len(num_transitions-1)) {
+    i <- Xt[idx]
+    j <- Xt[idx+1]
+    Nt[i, j] <- Nt[i, j] + 1
+    At[i] <- At[i] + sojourn_times[idx+1]
+}
+At[Xt[num_transitions]] <- At[Xt[num_transitions]] + (time - sum(sojourn_times))
+
+
+estimate_lambda <- function(Nt, At, s, c) {
+    numerator <- 0
+    denominator <- 0
+    for (i in seq_len(c)) {
+        numerator <- numerator + Nt[i, i+1]
+        denominator <- denominator + At[i]
+    }
+    lambda_mle <- numerator / denominator
+    return(lambda_mle)
+}
+
+estimate_mu <- function(Nt, At, s, c) {
+    numerator <- 0
+    denominator <- 0
+    for (i in seq_len(c+1)) {
+        if (i < c + 1) {
+            numerator <- numerator + Nt[i+1, i]
+        }
+        if (i <= s + 1) {
+            denominator <- denominator + (i-1) * At[i]
+        } else {
+            denominator <- denominator + s * At[i]
+        }
+    }
+    mu_mle <- numerator / denominator
+    return(mu_mle)
+}
+
+lambda_mle <- estimate_lambda(Nt, At, s, c)
+mu_mle <- estimate_mu(Nt, At, s, c)
+
+print(lambda_mle)
+print(mu_mle)
+
+```
+
+
+```{r}
+# pi_st <- stationary_dist(lambda, mu, s, c)
+
+var_lambda <- (1 - At[c+1] / time) / lambda_mle
+
+var_lambda
+
+var_mu <- 0
+for (i in seq_len(c+1)) {
+    if (i <= s + 1) {
+        var_mu <- var_mu + (i-1) * At[i] / time
+    }
+    else {
+        var_mu <- var_mu + s * At[i] / time
+    }
+}
+var_mu <- var_mu / mu_mle
+
+var_mu
+```
+
+
+
+

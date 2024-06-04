@@ -1,0 +1,156 @@
+\documentclass[11pt]{article}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\textwidth}{6.5in}
+\setlength{\parindent}{0in}
+\setlength{\parskip}{\baselineskip}
+
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{fancybox}
+\usepackage{subfiles}
+\usepackage{enumitem, tabularx, booktabs, ragged2e}
+\usepackage[margin=1in]{geometry}
+\usepackage{listings, lstautogobble}
+\usepackage{alltt}
+\usepackage{tikz}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{blkarray}
+\usepackage[bottom]{footmisc}
+\usepackage{rotating}
+\usepackage{wasysym}
+\usepackage{rotating}
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{images/}{./img/}}
+\usepackage{verbatimbox}
+\usepackage{tablefootnote}
+\newcolumntype{L}{>{\centering\arraybackslash}m{1cm}}
+
+% colors in math environment
+\usepackage{xcolor}
+\definecolor{orange}{rgb}{1,0.5,0}
+\definecolor{blue}{rgb}{0.22, 0.58, 0.82}
+\definecolor{green}{rgb}{0.2, 0.65, 0.32}
+\definecolor{red}{rgb}{0.91, 0.26, 0.2}
+\definecolor{purple}{rgb}{0.46, 0.21, 0.68}
+\makeatletter
+\def\mathcolor#1#{\@mathcolor{#1}}
+\def\@mathcolor#1#2#3{%
+	\protect\leavevmode
+	\begingroup
+	\color#1{#2}#3%
+	\endgroup
+}
+\makeatother
+
+\allowdisplaybreaks
+
+% Label subfigures as 1(a) instead of 1a
+\usepackage[labelformat=simple]{subcaption}
+\renewcommand\thesubfigure{(\alph{subfigure})}
+\usetikzlibrary{automata,positioning}
+
+% Var, MSE, Bias
+\newcommand{\Var}{\text{Var}}
+\newcommand{\var}{\text{var}}
+\newcommand{\Cov}{\text{Cov}}
+\newcommand{\cov}{\text{cov}}
+\newcommand{\MSE}{\text{MSE}}
+\newcommand{\bias}{\text{Bias}}
+\newcommand{\E}{\mathbb{E}}
+
+% Norm and absolute value
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+
+% argmax and argmin
+\DeclareMathOperator*{\argmin}{argmin} % no space, limits underneath in displays
+\DeclareMathOperator*{\argmax}{argmax} % no space, limits underneath in displays
+
+% Decorators
+\newcommand{\dinkus}{\begin{center}***\end{center}}
+
+% Make code look nicer
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+\begin{center}
+  \setlength\fboxsep{0.5cm}
+  \fbox{\parbox{\textwidth}{
+  \textbf{STAT 517: Stochastic Modeling II} \hfill \textbf{Winter 2023}
+ \begin{center}
+	 {\Large\textbf{Homework 01 - Partial solutions}} \\
+ \end{center}
+	\textit{Instructor: Abel Rodriguez} \hfill \textit{TA: Apara Venkat}
+	}}
+\end{center}
+
+\textit{Note: This is only a high-level sketch of the solutions. If you catch any typos or have questions, post them in the discussion board.}
+
+
+\begin{enumerate}
+
+\item Start by ordering nodes on the lattice from left to right and top to bottom. So node at location (1, 1) would be the first node in the sequence, node at location (2, 1) would be the $L+1$-st node in the sequence, and so on. Then, for nodes not on the left or top boundary,
+\begin{align*}
+	P(X_t \mid X_1, \dots, X_{t-1}) &= P(X_t \mid X_{t-1}, X_{t-L})
+\end{align*}
+Nodes at the left (top) boundary have dependence only on $X_{t-L}$ ($X_{t-1}$). Thus, we have an $L$-th order Markov chain.
+
+We can use backpropagation to evaluate the partition function. Recursively compute starting from $t = L^2 - L$ to 1:
+\begin{align*}
+	q(X_{t+L-1} = x_{t+L-1}, \dots, X_{t} = x_{t}) &= \sum_{i \in \{-1, 1\}} P(X_{t+L} = i \mid X_{t+L-1} = x_{t+L-1}, \dots, X_{t} = x_{t}) \times \\
+	& \qquad q(X_{t+L} = i, \dots, X_{t+1} = x_{t+1})
+\end{align*}
+for all possible $x_i \in \{-1, 1\}$. For $t = L^2 - L$ to $L^2$, set $q(\cdot) = 1$. Finally, evaluate,
+\begin{align*}
+	Z &= \sum_{i} P(X_1 = i) \sum_{x_t} q(X_1 = x_1, \dots, X_L = x_L)	
+\end{align*}
+Each $q(\cdot)$ takes $\mathcal{O}(2^L)$ operations. There are $\mathcal{O}(L^2)$ of them. Thus, the complexity is $\mathcal{O}(L^2 2^L)$ which is still exponential.
+
+\item Define $b_{ij} = \theta_1 (\mathbb{I}(j = N(i)) + \mathbb{I}(j = S(i))) + \theta_2 (\mathbb{I}(j = W(i)) + \mathbb{I}(j = E(i)))$. Define a vector $b_i \in \mathbb{R}^L$ with each element defined as described. Then,
+\begin{align*}
+	Z_i &= \mu_i + b_i^{\top} (Z - \mu) + \epsilon_i
+\end{align*}
+Vectorizing this, we get $Z =\mu +  B (Z - \mu) + \epsilon$ where $B$ is just composed of the $b_i$ vectors. Then, results from multivariate gaussians give the desired result. And it immediately follows that this is a CAR model.
+
+\item See code on Canvas.
+
+\item See \cite{preisler1993modelling} for a spatial model and discussion on estimating standard errors. Key idea here is that any regular GLM implementation will give consistent estimates for the parameters of the model but the naive GLM errors are incorrect because of spatial dependence. We need to bootstrap to obtain confidence intervals. Code is available on Canvas.
+
+\item Need to implement a noisy exchange algorithm. See code on Canvas.
+
+
+\end{enumerate}
+
+
+
+\bibliographystyle{apalike}
+\bibliography{references}
+
+
+
+\end{document} 

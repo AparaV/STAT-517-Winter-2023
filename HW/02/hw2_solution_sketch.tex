@@ -1,0 +1,168 @@
+\documentclass[11pt]{article}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\textwidth}{6.5in}
+\setlength{\parindent}{0in}
+\setlength{\parskip}{\baselineskip}
+
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{fancybox}
+\usepackage{subfiles}
+\usepackage{enumitem, tabularx, booktabs, ragged2e}
+\usepackage[margin=1in]{geometry}
+\usepackage{listings, lstautogobble}
+\usepackage{alltt}
+\usepackage{tikz}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{blkarray}
+\usepackage[bottom]{footmisc}
+\usepackage{rotating}
+\usepackage{wasysym}
+\usepackage{rotating}
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{images/}{./img/}}
+\usepackage{verbatimbox}
+\usepackage{tablefootnote}
+\newcolumntype{L}{>{\centering\arraybackslash}m{1cm}}
+
+% colors in math environment
+\usepackage{xcolor}
+\definecolor{orange}{rgb}{1,0.5,0}
+\definecolor{blue}{rgb}{0.22, 0.58, 0.82}
+\definecolor{green}{rgb}{0.2, 0.65, 0.32}
+\definecolor{red}{rgb}{0.91, 0.26, 0.2}
+\definecolor{purple}{rgb}{0.46, 0.21, 0.68}
+\makeatletter
+\def\mathcolor#1#{\@mathcolor{#1}}
+\def\@mathcolor#1#2#3{%
+	\protect\leavevmode
+	\begingroup
+	\color#1{#2}#3%
+	\endgroup
+}
+\makeatother
+
+\allowdisplaybreaks
+
+% Label subfigures as 1(a) instead of 1a
+\usepackage[labelformat=simple]{subcaption}
+\renewcommand\thesubfigure{(\alph{subfigure})}
+\usetikzlibrary{automata,positioning}
+
+% Var, MSE, Bias
+\newcommand{\Var}{\text{Var}}
+\newcommand{\var}{\text{var}}
+\newcommand{\Cov}{\text{Cov}}
+\newcommand{\cov}{\text{cov}}
+\newcommand{\MSE}{\text{MSE}}
+\newcommand{\bias}{\text{Bias}}
+\newcommand{\E}{\mathbb{E}}
+
+% Norm and absolute value
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+
+% argmax and argmin
+\DeclareMathOperator*{\argmin}{argmin} % no space, limits underneath in displays
+\DeclareMathOperator*{\argmax}{argmax} % no space, limits underneath in displays
+
+% Decorators
+\newcommand{\dinkus}{\begin{center}***\end{center}}
+
+% Make code look nicer
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+\begin{center}
+  \setlength\fboxsep{0.5cm}
+  \fbox{\parbox{\textwidth}{
+  \textbf{STAT 517: Stochastic Modeling II} \hfill \textbf{Winter 2023}
+ \begin{center}
+	 {\Large\textbf{Homework 02 - Partial solutions}} \\
+ \end{center}
+	\textit{Instructor: Abel Rodriguez} \hfill \textit{TA: Apara Venkat}
+	}}
+\end{center}
+
+\textit{Note: This is only a high-level sketch of the solutions. If you catch any typos or have questions, post them in the discussion board.}
+
+
+\begin{enumerate}[label=(\alph*)]
+
+\item We have the $Q$ matrix
+\begin{align*}
+	Q = \begin{bmatrix}
+	- & \alpha \pi_G & \beta \pi_C & \beta \pi_T \\
+	\alpha \pi_A & - & \beta \pi_C & \beta \pi_T \\
+	\beta \pi_A & \beta \pi_G & - & \gamma \pi_T \\
+	\beta \pi_A & \beta \pi_G & \gamma \pi_C & -
+	\end{bmatrix},
+\end{align*}
+where the diagonals are such that rows sum to 0. It is easy to verify that $v = \pi$ satisfies $Q^{\top} v = 0$.
+
+\item Easy to verify the time reversibility condition, $q_{ij}^* = q_{ij}$ where $q_{ij}^* = \pi_j q_{ji} / \pi_i$ for all $i, j$.
+
+
+\item Can be simulated by using code from Lab 2. Just run the code for those time periods indicated by the branch length and use the final state for the observed node sequence.
+
+\item I will write down the likelihood for just one DNA base $X = X^{(1)}$ (since the bases are independent and identical, just multiply all likelihoods). Suppose the root node is $X_0$, the left child is $X_1$, the right child is $X_2$, and the two grandchildren are $X_3, X_4$ (left to right). Then the likelihood can be written as
+\begin{align*}
+	\mathcal{L}(\theta; X_0, \dots, X_4) &= P_{X_0, X_1}(1) P_{X_0, X_2}(0.65) P_{X_2, X_3}(0.35) P_{X_2, X_4}(0.3)
+\end{align*}
+where $\theta = (\pi_A, \pi_G, \pi_C, \alpha, \gamma)$ are the parameters (note $\pi_T$ can be calculated from other $\pi_{\cdot}$'s). We have $P_{ij}(t) = e^{Qt}$, which can be estimated as well. Now just run a numerical solver, like R's \texttt{optim}, to maximize the log-likelihood.
+
+\item There are a few ways to proceed with this. One is just marginalizing over $X_0, X_2$. If we assume the process is already stationary, then
+\begin{align*}
+	\mathcal{L}^{\prime}(\theta ; X_1, X_3, X_4) &= \sum_{X_2} \sum_{X_0} \pi_{X_0} P_{X_0, X_1}(1) P_{X_0, X_2}(0.65) P_{X_2, X_3}(0.35) P_{X_2, X_4}(0.3).
+\end{align*}
+Now, just use the same numerical solver as in part (d).
+
+Another method is to use the EM algorithm. Initialize $\theta := \theta^{(0)}$. This contains two steps
+\begin{enumerate}[label=(\roman*)]
+\item E-step:
+\begin{align*}
+	Q(\theta \mid \theta^{(t-1)}) &= \E_{X_0, X_2 \mid X_1, X_3, X_4, \theta^{(t-1)}} \left[ \ell(\theta^{(t-1)}; X_0, \dots, X_4) \right]
+\end{align*}
+\item M-step:
+\begin{align*}
+	\theta^{(t)} &= \argmax_{\theta} Q(\theta \mid \theta^{(t-1)}) 
+\end{align*}
+\end{enumerate}
+We repeat this until some numerical convergence criterion for $\theta^{(t)}$ is satisfied.
+
+
+\end{enumerate}
+
+
+
+%\bibliographystyle{apalike}
+%\bibliography{references}
+
+
+
+\end{document} 

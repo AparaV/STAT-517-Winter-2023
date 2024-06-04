@@ -1,0 +1,188 @@
+\documentclass[11pt]{article}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\textwidth}{6.5in}
+\setlength{\parindent}{0in}
+\setlength{\parskip}{\baselineskip}
+
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{fancybox}
+\usepackage{subfiles}
+\usepackage{enumitem, tabularx, booktabs, ragged2e}
+\usepackage[margin=1in]{geometry}
+\usepackage{listings, lstautogobble}
+\usepackage{alltt}
+\usepackage{tikz}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{blkarray}
+\usepackage[bottom]{footmisc}
+\usepackage{rotating}
+\usepackage{wasysym}
+\usepackage{rotating}
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{images/}{./img/}}
+\usepackage{verbatimbox}
+\usepackage{tablefootnote}
+\newcolumntype{L}{>{\centering\arraybackslash}m{1cm}}
+
+% colors in math environment
+\usepackage{xcolor}
+\definecolor{orange}{rgb}{1,0.5,0}
+\definecolor{blue}{rgb}{0.22, 0.58, 0.82}
+\definecolor{green}{rgb}{0.2, 0.65, 0.32}
+\definecolor{red}{rgb}{0.91, 0.26, 0.2}
+\definecolor{purple}{rgb}{0.46, 0.21, 0.68}
+\makeatletter
+\def\mathcolor#1#{\@mathcolor{#1}}
+\def\@mathcolor#1#2#3{%
+	\protect\leavevmode
+	\begingroup
+	\color#1{#2}#3%
+	\endgroup
+}
+\makeatother
+
+\allowdisplaybreaks
+
+% Label subfigures as 1(a) instead of 1a
+\usepackage[labelformat=simple]{subcaption}
+\renewcommand\thesubfigure{(\alph{subfigure})}
+\usetikzlibrary{automata,positioning}
+
+% Var, MSE, Bias
+\newcommand{\Var}{\text{Var}}
+\newcommand{\var}{\text{var}}
+\newcommand{\Cov}{\text{Cov}}
+\newcommand{\cov}{\text{cov}}
+\newcommand{\MSE}{\text{MSE}}
+\newcommand{\bias}{\text{Bias}}
+\newcommand{\E}{\mathbb{E}}
+
+% Norm and absolute value
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+
+% argmax and argmin
+\DeclareMathOperator*{\argmin}{argmin} % no space, limits underneath in displays
+\DeclareMathOperator*{\argmax}{argmax} % no space, limits underneath in displays
+
+% Decorators
+\newcommand{\dinkus}{\begin{center}***\end{center}}
+
+% Make code look nicer
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+\begin{center}
+  \setlength\fboxsep{0.5cm}
+  \fbox{\parbox{\textwidth}{
+  \textbf{STAT 517: Stochastic Modeling II} \hfill \textbf{Winter 2023}
+ \begin{center}
+	 {\Large\textbf{Homework 03 - Partial solutions}} \\
+ \end{center}
+	\textit{Instructor: Abel Rodriguez} \hfill \textit{TA: Apara Venkat}
+	}}
+\end{center}
+
+\textit{Note: This is only a high-level sketch of the solutions. If you catch any typos or have questions, post them in the discussion board.}
+
+
+\begin{enumerate}
+
+\item Since $\Lambda$ is absolutely continuous on a bounded interval $[0, T]$, it is also differentiable. Call $\Lambda^{\prime}(t) = \lambda(t)$. I will denote the likelihood of $\{ t_i^*\}_{i=1}^n$ as $P^*$ and the likelihood of $\{t_i\}_{i=1}^n$ using $P$. We have,
+\begin{align*}
+	P(t_1, \dots, t_n) &= e^{-\Lambda(T)} \prod_{i=1}^n \lambda(t_i).
+\end{align*}
+By performing a multivariate random variable transformation transformation,
+\begin{align*}
+	P^*(t_1^*, \dots, t_n^*) &= P(F^{-1}(t_1), \dots, F^{-1}(t_n)) \abs{\mathcal{J}} \\
+	&= e^{-\Lambda(T)} \prod_{i=1}^n \lambda(F^{-1}(t_i)) \abs{\mathcal{J}}
+\end{align*}
+where $\mathcal{J}$ is the Jacobian of this transformation. It is easy to see that we only need to care about the diagonal elements of the Jacobian. Thus,
+\begin{align*}
+	P^*(t_1^*, \dots, t_n^*) &= e^{-\Lambda(T)} \prod_{i=1}^n \lambda(F^{-1}(t_i)) \abs{(F^{-1})^{\prime}(t_i)} \\
+	&=  e^{-\Lambda(T)} \prod_{i=1}^n \lambda(F^{-1}(t_i)) \frac{\Lambda(T)}{\lambda(F^{-1}(t_i))} \\
+	&= e^{-\Lambda(T)} (\Lambda(T))^n,
+\end{align*}
+which shows the desired result that the transformed times $t_i^*$ are a homogeneous Poisson process on the interval $[0, 1]$.
+
+\item Pick any periodic function that is a valid intensity i.e., non-negative. For example,
+\begin{align*}
+	\lambda(t) &= \exp \{A \cos(\omega t + \phi) + B\}.
+\end{align*}
+Then write the likelihood,
+\begin{align*}
+	\mathcal{L} &= e^{-(\Lambda(T) - \Lambda(T_0))} \prod_{i=1}^n \lambda(t_i), \\
+	\Lambda(x) &= \int_0^x \lambda(t) dt.
+\end{align*}
+We need to be careful with $\Lambda(T_0)$ here as the observations are not on $(0, T]$ but on $(T_0, T]$. Now, we just maximize it numerically. Note that we need to calculate $\Lambda(T) - \Lambda(T_0)$ as well. For this particular model, this needs to be done numerically as well. We can estimate the function $\widehat{\lambda}$.
+
+For goodness-of-fit, we perform the transformation as in Q1, $t^* = \widehat{\Lambda}(t) / (\widehat{\Lambda}(T) - \widehat{\Lambda}(T_0))$. Then, we test if $\{t_i^*\}_{i=1}^n$ come from a standard uniform distribution using Kolmogorov-Smirnov test and/or Q-Q plots. See Lab 3 for examples of these.
+
+\item As notation, let $X_{j,k}^{(i)}$ denote the arrival time of sample $k$ in generation $j$ which spawned from immigrant $i$. Assuming immigrants are the 0-th generation, $X_{0,1}^{(i)}$ is the arrival time of immigrant $i$. Suppose we observe for time $[0, T]$ and count $m$ immigrants. Then,
+\begin{align*}
+	P(X_{0,1}^{(1)}, \dots, X_{0,1}^{(m)})  = e^{-\mu T} \mu^m
+\end{align*}
+as we know immigrants come from a homogeneous Poisson point process with rate $\mu$.
+
+Now, take any $j$-th generation, $j > 0$. The number of arrivals in this generation (descended from $i$), $N_{ij}$, is given by Poisson($\alpha$) and their arrival times are given by Exponential($\beta$). Suppose there are $N_{ij} = n_{ij}$ arrivals belonging to the $j$-th generation descended from immigrant $i$. Then,
+\begin{align*}
+	P(X_{j,1}^{(i)}, \dots, X_{j, n_{ij}}^{(i)}) &= P(X_{j,1}^{(i)}, \dots, X_{j, N_{ij}}^{(i)} \mid N_{ij} = n_{ij}) P(N_{ij} = n_{ij}) \\
+	&= P(N_{ij} = n_{ij}) \prod_{k=1}^{n_{ij}} \beta \exp \left\{ -\beta \left(X_{j, k}^{(i)} - \text{parent}(X_{j, k}^{(i)}) \right) \right\} \\
+	&= \frac{e^{-\alpha N_{j-1,i}} \alpha^{n_{ij}}}{n_{ij}!} \beta^{n_{ij}} \exp \left\{ -\beta \sum_{k=1}^{n_{ij}} \left(X_{j, k}^{(i)} - \text{parent}(X_{j, k}^{(i)}) \right) \right\}
+\end{align*}
+where $\text{parent}(X_{j, k}^{(i)})$ is the parent in generation $j-1$ that spawned $X_{j, k}^{(i)}$. We need to do this for all generations. Eventually the log-likelihood will look like\footnote{Here we are assuming that arrivals in the fourth generation do not produce any children. If instead you assume that the children of the fourth generation are not observed, then the coefficient on $\alpha$ will be $N_{\text{arrivals}} - N_4$ where $N_4$ is the number of arrivals in the fourth generation.}
+\begin{align*}
+	\ell &= -\mu T + N_{\text{immigrants}} \log \mu + N_{\text{descendants}} (\log \alpha \beta) - N_{\text{arrivals}} \alpha \\
+	&\qquad - T_{\text{spawn}} \beta,
+\end{align*}
+where $N_{\text{immigrants}}$ is the total number of immigrants; $N_{\text{descendants}}$ is the total number of descendants who came from the $N_{\text{immigrants}}$ immigrants; $N_{\text{arrivals}} = N_{\text{immigrants}} + N_{\text{descendants}}$ is the total number of arrivals, and; $T_{\text{spawn}}$ is the time it took for each child to spawn from its parent (this is summed over all children).
+
+This gives us the MLE,
+\begin{align*}
+	\widehat{\mu} &= \frac{N_{\text{immigrants}}}{T} \\
+	\widehat{\alpha} &= \frac{N_{\text{descendants}}}{N_{\text{arrivals}}} \\
+	\widehat{\beta} &= \frac{N_{\text{descendants}}}{T_{\text{spawn}}}
+\end{align*}
+
+And if $\widehat{\alpha} < 1$, then its variance is,
+\begin{align*}
+	\Var(\widehat{\alpha}) &= \alpha (1 - \alpha) \\
+	\implies \widehat{\Var}(\widehat{\alpha}) &= \widehat{\alpha} (1 - \widehat{\alpha})
+\end{align*}
+
+\end{enumerate}
+
+
+
+%\bibliographystyle{apalike}
+%\bibliography{references}
+
+
+
+\end{document}

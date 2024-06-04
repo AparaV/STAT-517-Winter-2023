@@ -1,5 +1,8 @@
 # TeX files
 *.aux
+*.out
+*.log
+*.synctex.gz
 
 # History files
 .Rhistory

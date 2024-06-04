@@ -1,0 +1,280 @@
+\documentclass[11pt]{article}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\textwidth}{6.5in}
+\setlength{\parindent}{0in}
+\setlength{\parskip}{\baselineskip}
+
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{fancybox}
+\usepackage{subfiles}
+\usepackage{enumitem, tabularx, booktabs, ragged2e}
+\usepackage[margin=1in]{geometry}
+\usepackage{listings, lstautogobble}
+\usepackage{alltt}
+\usepackage{tikz}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{blkarray}
+\usepackage[bottom]{footmisc}
+\usepackage{rotating}
+\usepackage{wasysym}
+\usepackage{rotating}
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{images/}{./img/}}
+\usepackage{verbatimbox}
+\usepackage{tablefootnote}
+\newcolumntype{L}{>{\centering\arraybackslash}m{1cm}}
+
+% colors in math environment
+\usepackage{xcolor}
+\definecolor{orange}{rgb}{1,0.5,0}
+\definecolor{blue}{rgb}{0.22, 0.58, 0.82}
+\definecolor{green}{rgb}{0.2, 0.65, 0.32}
+\definecolor{red}{rgb}{0.91, 0.26, 0.2}
+\definecolor{purple}{rgb}{0.46, 0.21, 0.68}
+\makeatletter
+\def\mathcolor#1#{\@mathcolor{#1}}
+\def\@mathcolor#1#2#3{%
+	\protect\leavevmode
+	\begingroup
+	\color#1{#2}#3%
+	\endgroup
+}
+\makeatother
+
+\allowdisplaybreaks
+
+% Label subfigures as 1(a) instead of 1a
+\usepackage[labelformat=simple]{subcaption}
+\renewcommand\thesubfigure{(\alph{subfigure})}
+\usetikzlibrary{automata,positioning}
+
+% Var, MSE, Bias
+\newcommand{\Var}{\text{Var}}
+\newcommand{\var}{\text{var}}
+\newcommand{\Cov}{\text{Cov}}
+\newcommand{\cov}{\text{cov}}
+\newcommand{\corr}{\text{corr}}
+\newcommand{\MSE}{\text{MSE}}
+\newcommand{\bias}{\text{Bias}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\iid}{\stackrel{\text{i.i.d.}}{\sim}}
+
+% Norm and absolute value
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+
+% argmax and argmin
+\DeclareMathOperator*{\argmin}{argmin} % no space, limits underneath in displays
+\DeclareMathOperator*{\argmax}{argmax} % no space, limits underneath in displays
+
+% Decorators
+\newcommand{\dinkus}{\begin{center}***\end{center}}
+
+% Make code look nicer
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+\begin{center}
+  \setlength\fboxsep{0.5cm}
+  \fbox{\parbox{\textwidth}{
+  \textbf{STAT 517: Stochastic Modeling II} \hfill \textbf{Winter 2023}
+ \begin{center}
+	 {\Large\textbf{Lab 1 Notes}} \\
+	 January 17, 2023 \\
+ \end{center}
+	\textit{Instructor: Abel Rodriguez} \hfill \textit{TA: Apara Venkat}
+	}}
+\end{center}
+
+\textit{These notes are meant to accompany the implementations discussed during the lab. They contain derivations for mathematical quantities estimated in the lab and other miscellaneous information. They have not been proofread and may contain typos. Please email aparav@uw.edu if you catch errors.\footnote{Thanks to Jess Kunke for catching errors in the notes.}}
+
+\subsection*{Converting a 2D lattice to an adjacency matrix}
+
+In the Ising model, we work with a regular 2D lattice. An intuitive data structure to store the spins of each node is a 2D matrix. For example we may store observations on a 2D lattice, $\mathbf{X}$, in a matrix $M$ with the element $M_{i, j}$ denoting the value taken by the node at lattice position $(i, j)$.
+
+While this matrix structure is convenient for certain scenarios, some calculations require us to use an explicit adjacency matrix. This conversion is not difficult but it can be tedious, often leading us to miss edge cases. Here, we will describe one way to perform this transformation.
+
+The first task is to assign a unique ID to each node. Suppose we have a $m \times n$ lattice. Then, we can assign a node at position $(i, j)$ the unique ID $n(i-1) + j$. This is equivalent to ``unrolling'' the matrix $M$ into a vector. The following R code demonstrates how to convert between the lattice position and the unique vector position. Notice that when converting from the vector position back to the lattice position, we need to handle the edge case corresponding to the right boundary carefully.
+
+\begin{verbatim}
+lat_to_vec <- function(i, j, m, n) {
+    k <- n*(i-1) + j
+    return(k)
+}
+
+vec_to_lat <- function(k, m, n) {
+    i <- floor((k-1) / n) + 1
+    j <- (k %% n)
+    if (j == 0) {
+        j <- n
+    }
+    return(c(i, j))
+}
+\end{verbatim}
+
+Using this, it is easy to write code that converts a 2D lattice to an adjacency matrix. These helper functions are available on Canvas.
+
+
+\subsection*{Solutions to Lab 1}
+
+\begin{enumerate}
+
+\item The dataset is available at \url{https://sites.stat.washington.edu/peter/stoch.mod.data.html}. Please download \texttt{Data.Set.5}.
+
+\begin{enumerate}
+\item The implementation should be straightforward at first blush. However, there are two issues. First, the textbook has some typos. This makes it difficult to find out whether your implementation is correct. The error seems to come from how the author parameterizes the interaction effects. Throughout the literature, you will see two different parameterizations,
+\begin{align*}
+	p(x) &\propto \exp \left\{ \beta \sum_{i, j} x_i x_j \mathbb{I} (\text{$i$, $j$ are neighbors}) \right\}, \\
+	p(x) &\propto \exp \left\{ \frac{1}{2} \beta \sum_{i, j} x_i x_j \mathbb{I} (\text{$i$, $j$ are neighbors}) \right\}.
+\end{align*}
+The difference between the two (which, as in this case, is often not made obvious) is that the top parameterization \textit{double counts} interaction terms and the bottom one doesn't. The textbook starts out by double counting interactions. But Figure 4.6 does not double count interactions. This is very confusing. Hopefully the implementation provided in this lab makes the distinctions clear.
+
+Second, the textbook suggests a Metropolis-Hastings sampler for sampling from the auxiliary distribution for exponential tilting. This can be somewhat slow in terms of computation. An alternate is the Swendson-Wang (SW) sampler which you will implement in HW 1. For this lab, we will use the SW sampler. The implementation will become available on Canvas after HW 1 is due.
+
+Now, on to calculating the asymptotic covariance matrix.
+\begin{align*}
+	\frac{\partial^2 \lambda}{\partial \theta_i^2} &= - \frac{ \frac{\partial^2 Z(\theta)}{\partial \theta_i^2} \cdot \frac{1}{Z(\phi)} \cdot \frac{Z(\theta)}{Z(\phi)} - \left(\frac{\partial Z(\theta)}{\partial \theta_i} \cdot \frac{1}{Z(\phi)}\right)^2 }{\left(\frac{Z(\theta)}{Z(\phi)}\right)^2} \\
+	\frac{\partial^2 \lambda}{\partial \theta_1 \partial \theta_2} &= - \frac{ \frac{\partial^2 Z(\theta)}{\partial \theta_1 \partial \theta_2} \cdot \frac{1}{Z(\phi)} \cdot \frac{Z(\theta)}{Z(\phi)} - \left(\frac{\partial Z(\theta)}{\partial \theta_1} \cdot \frac{1}{Z(\phi)}\right) \left(\frac{\partial Z(\theta)}{\partial \theta_2} \cdot \frac{1}{Z(\phi)}\right) }{\left(\frac{Z(\theta)}{Z(\phi)}\right)^2}
+\end{align*}
+where
+\begin{align*}
+	\frac{\partial^2 Z(\theta)}{\partial \theta_2} \cdot \frac{1}{Z(\phi)} &= \E_{\phi} \left[ T_i^2 \exp\{T_1(\theta_1 - \phi_1) + T_2(\theta_2 - \phi_2)\} \right] \\
+	&\approx \frac{1}{n} \sum_{j=1}^n (t_i^{(j)})^2 \exp\{t_1^{(j)}(\theta_1 - \phi_1) + t_2^{(j)} (\theta_2 - \phi_2)\} \\
+	\frac{ \partial^2 Z(\theta) }{\partial \theta_1 \partial \theta_2} \cdot \frac{1}{Z(\phi)} &= \E_{\phi} \left[ T_1 T_2 \exp\{T_1(\theta_1 - \phi_1) + T_2(\theta_2 - \phi_2)\} \right] \\
+	&\approx \frac{1}{n} \sum_{j=1}^n t_1^{(j)} t_2^{(j)} \exp\{t_1^{(j)}(\theta_1 - \phi_1) + t_2^{(j)} (\theta_2 - \phi_2)\} \\
+\end{align*}
+
+This lets us compute the Fisher Information matrix,
+\begin{align*}
+	\mathcal{I} &= - \begin{bmatrix}
+	\frac{\partial^2 \lambda}{\partial \theta_1^2} & \frac{\partial^2 \lambda}{\partial \theta_1 \partial \theta_2} \\
+	\frac{\partial^2 \lambda}{\partial \theta_1 \partial \theta_2} & \frac{\partial^2 \lambda}{\partial \theta_2^2}
+	\end{bmatrix}
+\end{align*}
+And the asymptotic covariance matrix is $\mathcal{I}^{-1}$.
+
+
+\item Following Ghosal and Mukherjee (2020),\footnote{Ghosal, Promit, and Sumit Mukherjee. ``Joint estimation of parameters in Ising model.'' The Annals of Statistics 48.2 (2020): 785-810. \url{https://doi.org/10.1214/19-AOS1822}} the score equations for the maximum pseudolikelihood estimator (MPLE) are
+\begin{align*}
+	Q_n(\beta, B) &= \sum_{i=1}^n m_i(x) (x_i - \tanh(\beta m_i(x) + B)) \\
+	R_n(\beta, B) &= \sum_{i=1}^n (x_i - \tanh(\beta m_i(x) + B))
+\end{align*}
+where $m_i(x) = \sum_{j=1}^n A_{i,j} x_j$ and $A$ is the adjacency matrix of the 2D lattice. The parameter $\beta$ corresponds to $\theta_2$ and $B$ corresponds to $\theta_1$ in part (a).
+
+To calculate the asymptotic covariance matrix,
+\begin{align*}
+	\frac{\partial Q_n}{\partial \beta} &= - \sum_{i=1}^n \frac{m_i(x)^2}{\cosh^2(\beta m_i(x) + B)} \\
+	\frac{\partial Q_n}{\partial B} &= - \sum_{i=1}^n \frac{m_i(x)}{\cosh^2(\beta m_i(x) + B)} \\
+	\frac{\partial R_n}{\partial B} &= - \sum_{i=1}^n \frac{1}{\cosh^2(\beta m_i(x) + B)}
+\end{align*}
+This gives us the Fisher information matrix
+\begin{align*}
+	\mathcal{I} &=  \E \begin{bmatrix}
+	\frac{\partial Q_n}{\partial \beta} & \frac{\partial Q_n}{\partial B} \\
+	\frac{\partial Q_n}{\partial B} & \frac{\partial R_n}{\partial B} \\
+	\end{bmatrix}
+\end{align*}
+
+Note that in part (a), we did not run into any issues when finding the information matrix as the $[D^2 \log Z(\theta) / Z(\phi)]$ had no dependence on observations $X_i$. Here, that is not that case. There is no easy way to analytically evaluate this expectation. So we will approximate the Fisher information matrix using random samples (see Seymour (2001)\footnote{Seymour, Lynne. ``Estimating the Variance of the Maximum Pseudo-Likelihood Estimator.'' Lecture Notes-Monograph Series (2001): 281-295. \url{https://www.jstor.org/stable/4356156}.}). Once again, we use the SW sampler to draw observations to estimate $\widehat{\mathcal{I}}$. Therefore the asymptotic covariance matrix is $\widehat{\mathcal{I}}^{-1}$.
+
+To evaluate the finite sample covariance matrix, we need to correct for the convergence rate as seen in Theorem 1.2 of Ghosal and Mukherjee (2020). This amounts to calculating
+\begin{align*}
+	T_n(X) &= \frac{1}{n} \sum_{i=1}^n (m_i(x) - \tilde{m}(x))^2 \\
+	\tilde{m}(x) &= \frac{1}{n} \sum_{i=1}^n m_i(x)
+\end{align*}
+
+Finally, note that the above calculation assumes that $B \neq 0$. If $B = 0$, then see Chatterjee (2007)\footnote{Chatterjee, Sourav. ``Estimation in spin glasses: A first step.'' The Annals of Statistics 35.5 (2007): 1931-1946. \url{https://doi.org/10.1214/009053607000000109}} for consistency results.
+
+\end{enumerate}
+
+
+\item
+\begin{enumerate}
+
+\item $(\theta_i, \sigma_i^2)$ corresponds to the mean and variance of the luminosity of segment $i$.
+
+\item $\phi$ has the usual interpretation in Ising model. If $\phi > 0$, neighbors are more likely to belong to the same segment. If $\phi = 0$, neighbors are independent. And if $\phi < 0$, then neighbors are more likely to belong to different segments. For the image segmentation problem, it is typical to assume that $\phi > 0$.
+
+\item Here, we will use a Gibbs sampler. The overall scheme looks like
+
+\begin{enumerate}[label=(\arabic*)]
+\item Initialize $\theta^{(0)}, \sigma^{2, (0)}, Z^{(0)}, \phi^{(0)}$
+\item For $t = 1$ to $T$
+\begin{enumerate}[label=(\roman*)]
+	\item For $i = 1$ to $N$
+		\begin{itemize}
+			\item Sample $Z_i^{(t)} \sim P(Z_i \mid Z_1^{(t)}, \dots, Z_{i-1}^{(t)}, Z_{i+1}^{(t-1)}, \dots, Z_{N}^{(t-1)}, Y, \theta^{(t-1)}, \sigma^{2, (t-1)}, \phi^{(t-1)})$
+		\end{itemize}
+		
+	\item For $k = 1$ to $K$
+		\begin{itemize}
+			\item Sample $\theta_k^{(t)} \sim P(\theta_k \mid \theta_1^{(t)}, \dots, \theta_{k-1}^{(t)}, \theta_{k+1}^{(t-1)}, \dots, \theta_{K}^{(t-1)}, Y, Z^{(t)}, \sigma^{2, (t-1)}, \phi^{(t-1)})$
+			\item Sample $\sigma_k^{2, (t)} \sim P(\sigma^2_k \mid \sigma_1^{2, (t)}, \dots, \sigma_{k-1}^{2, (t)}, \sigma_{k+1}^{2, (t-1)}, \dots, \sigma_{K}^{2, (t-1)}, Y, Z^{(t)}, \theta^{(t)}, \phi^{(t-1)})$
+		\end{itemize}
+	
+	\item Sample $\phi^{(t)} \sim P(\phi \mid Z^{(t)}, Y, \theta^{(t)}, \sigma^{2, (t)})$.
+\end{enumerate}
+\end{enumerate}
+
+The conditional distributions for $Z, \theta, \sigma^2$ are derived below. You will derive the conditional distribution for $\phi$ and implement its sampler in HW 1.
+\begin{align*}
+	P(Z_i \mid Z_{-i}, \theta, \sigma^2, Y, \phi) &\propto P(Z_i, Z_{-i}, Y, \theta, \sigma^2, \phi) \\
+	&\propto P(Y_i \mid Z, \theta, \sigma^2, \phi) P(Z_i \mid Z_{-i}, \theta, \sigma^2, \phi) \\
+	&= P(Y_i \mid \theta_{Z_i}, \sigma_{Z_i}^2) P(Z_i \mid Z_{-i}, \phi) \\
+	\implies P(Z_i = k \mid Z_{-i}, \theta, \sigma^2, Y, \phi) &= \frac{P(Y_i \mid \theta_{k}, \sigma_{k}^2) P(Z_i = k \mid Z_{-i}, \phi)}{\sum_{j=1}^K P(Y_i \mid \theta_{j}, \sigma_{j}^2) P(Z_i = j \mid Z_{-i}, \phi)} \\
+	P(Z_i = k \mid Z_{-i}, \phi) &= \frac{\exp\{ \phi N_{\delta(i)}(k)\}}{\sum_{j=1}^K \exp\{ \phi N_{\delta(i)}(j)\}}
+\end{align*}
+where $N_{\delta(i)}(j)$ is the number of neighbors of node $i$ that have the color $j$.
+
+\begin{align*}
+	P(\theta_j \mid Z, \theta_{-j}, \sigma^2, Y, \phi) &\propto P(Y, Z, \theta_j, \theta_{-j}, \sigma^2, \phi) \\
+	&\propto P(Y_{Z(j)} \mid \theta_j, \sigma_j^2) P(\theta_j) \\
+	P(\sigma_j^2 \mid Z, \sigma^2_{-j}, \theta, Y, \phi) &\propto P(Y, Z, \sigma^2_j, \sigma^2_{-j}, \theta, \phi) \\
+	&\propto P(Y_{Z(j)} \mid \theta_j, \sigma_j^2) P(\sigma_j^2)
+\end{align*}
+where $Y_{Z(j)} = \{ Y_i : Z_i = j\}$.
+
+We will use conjugate priors for $(\theta, \sigma^2)$ i.e., $\theta_i \iid \mathcal{N}(0, \lambda)$, $\lambda > 0$ and $\sigma_j^2 \iid \text{Inv-Gamma}(\alpha, \beta)$, $\alpha, \beta > 0$.
+
+
+
+\end{enumerate}
+
+
+
+
+\end{enumerate}
+
+
+
+
+
+\end{document}
+
+	

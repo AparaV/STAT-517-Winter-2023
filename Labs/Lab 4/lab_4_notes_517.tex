@@ -1,0 +1,263 @@
+\documentclass[11pt]{article}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\textwidth}{6.5in}
+\setlength{\parindent}{0in}
+\setlength{\parskip}{\baselineskip}
+
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{fancybox}
+\usepackage{subfiles}
+\usepackage{enumitem, tabularx, booktabs, ragged2e}
+\usepackage[margin=1in]{geometry}
+\usepackage{listings, lstautogobble}
+\usepackage{alltt}
+\usepackage{tikz}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{blkarray}
+\usepackage[bottom]{footmisc}
+\usepackage{rotating}
+\usepackage{wasysym}
+\usepackage{rotating}
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{images/}{./img/}}
+\usepackage{verbatimbox}
+\usepackage{tablefootnote}
+\newcolumntype{L}{>{\centering\arraybackslash}m{1cm}}
+
+% colors in math environment
+\usepackage{xcolor}
+\definecolor{orange}{rgb}{1,0.5,0}
+\definecolor{blue}{rgb}{0.22, 0.58, 0.82}
+\definecolor{green}{rgb}{0.2, 0.65, 0.32}
+\definecolor{red}{rgb}{0.91, 0.26, 0.2}
+\definecolor{purple}{rgb}{0.46, 0.21, 0.68}
+\makeatletter
+\def\mathcolor#1#{\@mathcolor{#1}}
+\def\@mathcolor#1#2#3{%
+	\protect\leavevmode
+	\begingroup
+	\color#1{#2}#3%
+	\endgroup
+}
+\makeatother
+
+\allowdisplaybreaks
+
+% Label subfigures as 1(a) instead of 1a
+\usepackage[labelformat=simple]{subcaption}
+\renewcommand\thesubfigure{(\alph{subfigure})}
+\usetikzlibrary{automata,positioning}
+
+% Var, MSE, Bias
+\newcommand{\Var}{\text{Var}}
+\newcommand{\var}{\text{var}}
+\newcommand{\Cov}{\text{Cov}}
+\newcommand{\cov}{\text{cov}}
+\newcommand{\corr}{\text{corr}}
+\newcommand{\MSE}{\text{MSE}}
+\newcommand{\bias}{\text{Bias}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\iid}{\stackrel{\text{i.i.d.}}{\sim}}
+
+% Norm and absolute value
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+
+
+\newcommand{\g}[1][G]{\mathcal{#1}}
+
+% argmax and argmin
+\DeclareMathOperator*{\argmin}{argmin} % no space, limits underneath in displays
+\DeclareMathOperator*{\argmax}{argmax} % no space, limits underneath in displays
+
+% Decorators
+\newcommand{\dinkus}{\begin{center}***\end{center}}
+
+% Make code look nicer
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+\begin{center}
+  \setlength\fboxsep{0.5cm}
+  \fbox{\parbox{\textwidth}{
+  \textbf{STAT 517: Stochastic Modeling II} \hfill \textbf{Winter 2023}
+ \begin{center}
+	 {\Large\textbf{Lab 4 Notes}} \\
+	 March 7, 2023 \\
+ \end{center}
+	\textit{Instructor: Abel Rodriguez} \hfill \textit{TA: Apara Venkat}
+	}}
+\end{center}
+
+\textit{These notes are meant to accompany the discussions in the lab. They contain derivations for mathematical quantities estimated in the lab and other miscellaneous information. They have not been proofread and may contain typos. Please email aparav@uw.edu if you catch errors.}
+
+\begin{enumerate}
+
+\item We have that $\{X(t) : t \geq 0\}$ is a standard Brownian motion and that $M(t) = \max_{s \in [0, t]} X(s)$ as the running maximum. In the remainder of this problem, I will suppress the dependence on $t$ (i.e., $M := M(t)$) for typographic reasons. Then, the joint density of $(M, X)$ is
+\begin{align*}
+	f_{M, X}(m ,x) &= \frac{2(2m - x)}{t\sqrt{2 \pi t}} \exp \left\{ - \frac{(2m-x)^2}{2t} \right\}.
+\end{align*}
+Our goal is to find the probability $P(M > a \mid M = X)$ for some $a > 0$. Our strategy is to first find the conditional distribution of $M \mid M - X$ by performing a bivariate transformation. Then, a simple integral will provide us the desired quantity. So, let us consider the transformation
+\begin{align*}
+	U &= g_1(M, X) = M, \\
+	V &= g_2(M, X) = M - X, \\
+	\implies M &= g_1^{-1}(U, V) = U, \\
+	X &= g_2^{-1}(U, V) = U - V.
+\end{align*}
+The Jacobian of this transformation is
+\begin{align*}
+	\abs{\mathcal{J}} &= \begin{vmatrix}
+	\frac{\partial g_1^{-1}}{\partial u} & 	\frac{\partial g_1^{-1}}{\partial v} \\
+	\frac{\partial g_2^{-1}}{\partial u} & 	\frac{\partial g_2^{-1}}{\partial v}
+	\end{vmatrix} \\
+	&= \begin{vmatrix}
+	1 & 0 \\
+	1 & - 1\\
+	\end{vmatrix} \\
+	&= 1.
+\end{align*}
+Therefore, the joint density of $(U, V) = (M, M-X)$ is
+\begin{align*}
+	f_{M, M - X}(m, x) &= f_{M, X}(g_1^{-1}(m, x), g_2^{-1}(m, x)) \abs{\mathcal{J}} \\
+	&= \frac{2(m+x)}{t \sqrt{2 \pi t}} \exp \left\{ - \frac{(m+x)^2}{2t} \right\},
+\end{align*}
+where $m, x > 0$. In order to calculate the conditional density $f_{M \mid M-X}$, let us first find the marginal
+\begin{align*}
+	f_{M-X}(x) &= \int_{0}^{\infty} f_{M, M - X}(m, x) dm \\
+	&= \frac{2}{\sqrt{2 \pi t}} \int_0^{\infty} \frac{(m+x)}{t} \exp \left\{ - \frac{(m+x)^2}{2t} \right\} dm \\
+	&= \frac{2}{\sqrt{2 \pi t}} \int_0^{e^{-x^2 / 2t}} du \\
+	&= \frac{2}{\sqrt{2 \pi t}} \exp \left\{ - \frac{x^2}{2t} \right\},
+\end{align*}
+where in line 3, we performed a $u$-substitution with $u = e^{-(m+x)^2 / 2t}$.
+
+Now, we can find the conditional density,
+\begin{align*}
+	f_{M, M-X} (m \mid x) &= \frac{f_{M, M-X}(m, x)}{f_{M-X}(x)} \\
+	&= \frac{m+x}{t} \exp \left\{ - \frac{m(m + 2x)}{2t} \right\}, \qquad m > 0.
+\end{align*}
+Finally,
+\begin{align*}
+	P(M > a \mid M - X = x) &= \int_a^{\infty} f_{M, M-X}(m \mid x) dm \\
+	&= \int_a^{\infty} \frac{m+x}{t} \exp \left\{ - \frac{m(m + 2x)}{2t} \right\} dm \\
+	&= \int_0^{e^{-a(a+2x)/2t}} du \\
+	&= e^{-a(a+2x)/2t} \\
+	\implies P(M > a \mid M = X) &= e^{-a^2 / 2t},
+\end{align*}
+where in line 3, we performed $u$-substitution with $u = e^{-m(m+2x)/2t}$.
+
+\hfill $\blacksquare$
+
+\clearpage
+
+\item We have that $\{X(t) : t \geq 0\}$ is a standard Brownian motion. We wish to study the Ornstein-Uhlenbeck process,
+\begin{align*}
+	V(t) &= e^{-\alpha t / 2} X(\alpha e^{\alpha t}),
+\end{align*}
+where $\alpha > 0$ is some scaling parameter.
+
+For an arbitrary $k \in \mathbb{N}$, take times $\mathbf{t} = [t_1, \dots, t_k]$ where $t_1 < t_2 < \dots < t_k$. We have that $\mathbf{x}(\mathbf{t}) = [X(s_1),$ $X(s_2) - X(s_1),$ \dots, $X(s_k) - X(s_{k-1})]^{\top}$ are all independent of each other and normally distributed, where $s = \alpha e^{\alpha t}$.
+
+Therefore, $\mathbf{v}(\mathbf{t}) = [V(t_1)$, $V(t_2) - V(t_1)$, \dots, $V(t_k) - V(t_{k-1})]^{\top}$ are also independent of each other and are normally distributed. Then, the vector $\mathbf{V}(\mathbf{t}) = [V(t_1), \dots, V(t_k)]^{\top} = A \mathbf{v}(\mathbf{t})$ where $A \in \{0,1\}^{k \times k}$ with $A_{ij} = 1$ for $i \leq j$ and $A_{ij} = 0$ otherwise. Therefore, $\mathbf{V}$ is also normally distributed with mean
+\begin{align*}
+	\E[V(t)] &= e^{-\alpha t / 2} \E[X(\alpha e^{\alpha t})] = 0,
+\end{align*}
+and covariance
+\begin{align*}
+	\Cov(V(t_i), V(t_j)) &= e^{-\alpha(t_i + t_j) / 2} \Cov(X( \alpha e^{\alpha t_i}), X(\alpha e^{\alpha t_j})) \\
+	&= \alpha e^{-\alpha(t_i + t_j) / 2} e^{\alpha \min\{t_i, t_j\}} \\
+	&= \alpha e^{- \alpha \abs{t_j - t_i} / 2}.
+\end{align*}
+Thus, $V$ is a Gaussian process. Next, we prove stationarity by showing that $\mathbf{V}(\mathbf{t} + \tau) \stackrel{d}{=} \mathbf{V}(\mathbf{t})$ for any $\tau > 0$. Since we know that $\mathbf{V}(\mathbf{t} + \tau)$ is a Gaussian process, it is sufficient show that it has the same mean and covariance matrix as $\mathbf{V}(\mathbf{t})$. This is easy,
+\begin{align*}
+	\E[V(t + \tau)] &= 0 \\
+	&= \E[V(t)],
+\end{align*}
+and for the covariance,
+\begin{align*}
+	\Cov(V(t_i + \tau), V(t_j + \tau)) &= \alpha  e^{- \alpha \abs{(t_j + \tau) - (t_i + \tau)} / 2} \\
+	&= \alpha  e^{- \alpha \abs{t_j - t_i} / 2} \\
+	&= \Cov(V(t_i), V(t_j)).
+\end{align*}
+Thus, the process is stationary. $V$ is also Markovian which follows directly from independence of increments,
+\begin{align*}
+	P(V(t + \tau) \leq x \mid V(\tau) = v, \{V(u)\}_{0 < u < \tau}) &= P(V(t + \tau) - v \leq x - v \mid V(\tau) = v, \{V(u)\}_{0 < u < \tau}) \\
+	&= P(V(t + \tau) - V(\tau) \leq x - v \mid V(\tau) = v, \{V(u)\}_{0 < u < \tau}) \\
+	&= P(V(t + \tau) - V(\tau) \leq x - v \mid V(\tau) = v) \\
+	&= P(V(t + \tau) \leq x \mid V(\tau) = v),
+\end{align*}
+where in line 3 we used independence of increments.
+
+Now suppose that the increments are equally spaced with $t_{i} - t_{i-1} = \Delta$. Then, the joint $\mathbf{V}(\mathbf{t}) \sim \mathcal{N}(0, \Sigma)$ where $\Sigma_{ij} = \Sigma_{ji} = \alpha e^{- \alpha \abs{j-i} \Delta / 2}$. To see that this is a first order autoregressive model, notice that,
+\begin{align*}
+	V(t_{i+1}) &= \rho V(t_{i}) + \epsilon_i, \quad i = 1, \dots, k-1 \\
+	V(t_1) &\sim \mathcal{N}(0, \alpha), \\
+	\epsilon_i &\stackrel{\text{i.i.d.}}{\sim} \mathcal{N}\left( 0, \alpha(1 - \rho^2) \right),
+\end{align*}
+where $\rho = e^{-\alpha \Delta / 2}$ is the autocorrelation. And the joint is given by
+\begin{align*}
+	\mathbf{V}(\mathbf{t}) = \begin{bmatrix}
+	V(t_1) \\
+	V(t_2) \\
+	V(t_3) \\
+	\vdots \\
+	V(t_k)
+	\end{bmatrix} &\sim \mathcal{N} \left(0, \alpha \begin{bmatrix}
+	1 & \rho & \rho^2 & \dots & \rho^{k-1} \\
+	\rho & 1 & \rho & \dots & \rho^{k-2} \\
+	\rho^2 & \rho & 1 & \dots & \rho^{k-3} \\
+	\vdots & \vdots & \vdots & \ddots & \vdots \\
+	\rho^{k-1} & \rho^{k-2} & \rho^{k-3} & \dots & 1
+	\end{bmatrix} \right).
+\end{align*}
+
+\hfill $\blacksquare$
+
+\clearpage
+
+\item See code for all implementations and plots. The optimization is straightforward. I don't think we have closed-form solutions for the joint MLE (we can derive the MLE of $\sigma^2$ conditioned on $\lambda$). So we will just maximize the following log-likelihood using \texttt{optim},
+\begin{align*}
+	\ell(\mu, \sigma^2, \lambda) &= - n \log(\abs{\Sigma}) - (X - \mu)^{\top} \Sigma^{-1} (X - \mu), \\
+	\Sigma_{ij} &= \gamma(x_i, x_j).
+\end{align*}
+And this optimization can be better if we fix $\mu$ as the sample mean of $X$.
+
+
+One interesting point to note is that even though we define the covariance function without the Kronecker delta in parts (i) and (iv), we need some form of regularization as the sample covariance matrix is often ill-conditioned. So we will use something like,
+\begin{align*}
+	\gamma^{\prime}(x_1, x_2) &= \gamma(x_1, x_2) + \epsilon \delta_{x_1, x_2},
+\end{align*}
+for numerical reasons. In spatial statistics, the $\delta$ part is referred to as the ``nugget.''
+
+
+\end{enumerate}
+
+
+\end{document}
+
+

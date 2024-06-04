@@ -1,0 +1,320 @@
+\documentclass[11pt]{article}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\textwidth}{6.5in}
+\setlength{\parindent}{0in}
+\setlength{\parskip}{\baselineskip}
+
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{fancybox}
+\usepackage{subfiles}
+\usepackage{enumitem, tabularx, booktabs, ragged2e}
+\usepackage[margin=1in]{geometry}
+\usepackage{listings, lstautogobble}
+\usepackage{alltt}
+\usepackage{tikz}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{blkarray}
+\usepackage[bottom]{footmisc}
+\usepackage{rotating}
+\usepackage{wasysym}
+\usepackage{rotating}
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{images/}{./img/}}
+\usepackage{verbatimbox}
+\usepackage{tablefootnote}
+\newcolumntype{L}{>{\centering\arraybackslash}m{1cm}}
+
+% colors in math environment
+\usepackage{xcolor}
+\definecolor{orange}{rgb}{1,0.5,0}
+\definecolor{blue}{rgb}{0.22, 0.58, 0.82}
+\definecolor{green}{rgb}{0.2, 0.65, 0.32}
+\definecolor{red}{rgb}{0.91, 0.26, 0.2}
+\definecolor{purple}{rgb}{0.46, 0.21, 0.68}
+\makeatletter
+\def\mathcolor#1#{\@mathcolor{#1}}
+\def\@mathcolor#1#2#3{%
+	\protect\leavevmode
+	\begingroup
+	\color#1{#2}#3%
+	\endgroup
+}
+\makeatother
+
+\allowdisplaybreaks
+
+% Label subfigures as 1(a) instead of 1a
+\usepackage[labelformat=simple]{subcaption}
+\renewcommand\thesubfigure{(\alph{subfigure})}
+\usetikzlibrary{automata,positioning}
+
+% Var, MSE, Bias
+\newcommand{\Var}{\text{Var}}
+\newcommand{\var}{\text{var}}
+\newcommand{\Cov}{\text{Cov}}
+\newcommand{\cov}{\text{cov}}
+\newcommand{\corr}{\text{corr}}
+\newcommand{\MSE}{\text{MSE}}
+\newcommand{\bias}{\text{Bias}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\iid}{\stackrel{\text{i.i.d.}}{\sim}}
+
+% Norm and absolute value
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+
+% argmax and argmin
+\DeclareMathOperator*{\argmin}{argmin} % no space, limits underneath in displays
+\DeclareMathOperator*{\argmax}{argmax} % no space, limits underneath in displays
+
+% Decorators
+\newcommand{\dinkus}{\begin{center}***\end{center}}
+
+% Make code look nicer
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+\begin{center}
+  \setlength\fboxsep{0.5cm}
+  \fbox{\parbox{\textwidth}{
+  \textbf{STAT 517: Stochastic Modeling II} \hfill \textbf{Winter 2023}
+ \begin{center}
+	 {\Large\textbf{Lab 2 Notes}} \\
+	 February, 2 2023 \\
+ \end{center}
+	\textit{Instructor: Abel Rodriguez} \hfill \textit{TA: Apara Venkat}
+	}}
+\end{center}
+
+\textit{These notes are meant to accompany the discussions in the lab. They contain derivations for mathematical quantities estimated in the lab and other miscellaneous information. They have not been proofread and may contain typos. Please email aparav@uw.edu if you catch errors.}
+
+\begin{enumerate}
+
+\item To derive the transition rates, we will use a well-known property of Exponential random variables. If $Y_i \sim \text{Exponential}(\lambda_i)$ for $i = 1, \dots, n$ where all $Y_i$ are mutually independent of each other, then $Z = \min_i Y_i \sim \text{Exponential}(\sum_{i=1}^n \lambda_i)$.
+
+The state space is $X(t) \in \{0,1, \dots, c\}$. So, the arrival rate when $X(t) = c$ is just 0. Further there are only $s$ servers. So when $X(t) > s$, the rate at which a customer leaves the system is $s \mu$. And for all other $X(t) = i \leq s$, the rate at which a customer leaves the system is $i \mu$. Therefore,
+\begin{align*}
+	q_{i, i+1} &= \begin{cases}
+	\lambda, & 0 \leq i < c \\
+	0, & i = c
+	\end{cases} \\
+	q_{i, i-1} &= \begin{cases}
+	i \mu, & 0 < i < s \\
+	s \mu, & s \leq i \leq c
+	\end{cases} \\
+	\implies v_i &= q_{i, i-1} + q_{i, i+1} \\
+	&=  \begin{cases}
+	\lambda + i \mu, & 0 \leq i < s \\
+	\lambda + s \mu, & s \leq i < c \\
+	s \mu, & i = c
+	\end{cases}
+\end{align*}
+
+This allows us to write the Kolmogorov equations,
+\begin{align*}
+	P_{i,j}^{\prime}(t) &= \sum_{k \neq i} q_{i,k} P_{k, j}(t) - v_i P_{i, j}(t).
+\end{align*}
+Defining, $r_{i,j} = q_{i, j}$ whenever $i \neq j$ and $r_{i, i} = -v_i$, we have
+\begin{align*}
+	P_{i, j}^{\prime}(t) &= \sum_k r_{i, k} P_{k, j}(t) \\
+	\implies P^{\prime}(t) &= R P(t)
+\end{align*}
+where the second equation is in matrix form with $R$ as a $(c+1) \times (c+1)$ banded matrix,
+\begin{align*}
+	R &= \begin{bmatrix}
+	-\lambda & \lambda &  &  &  &  &  \\
+	\mu & -(\mu + \lambda) & \lambda &  &  &  &  \\
+	 & 2 \mu & - (2 \mu + \lambda) & \lambda &  &  &  \\
+	 &  &  & \ddots &  & & \\
+	 & & & s \mu & - (s \mu + \lambda) & \lambda & & \\
+	 &  &  & &  & \ddots & \\
+	 & & & & & s \mu & -s \mu
+	\end{bmatrix}.
+\end{align*}
+The solution to this differential equation is given by
+\begin{align*}
+	P(t) &= e^{R t} = \sum_{k=0}^{\infty} \frac{(Rt)^k}{k!}
+\end{align*}
+This does not have a closed form solution unless one can find eigenvalues of $R$. If one has access to eigenvalues, the Putzer algorithm can be used for evaluating $e^{Rt}$.\footnote{See \url{https://en.wikipedia.org/wiki/Matrix_differential_equation\#Putzer\_Algorithm\_for\_computing\_eAt} for the Putzer algorithm and more about matrix differential equations in general.}
+
+\item Here is a simple numerical algorithm to evaluate $e^{Rt}$. This relies on the well-known limit definition of $e^x$,
+\begin{align*}
+	e^x &= \lim_{n \to \infty} (1 + x / n)^n
+\end{align*}
+The equivalent definition for matrices is
+\begin{align*}
+	e^{Rt} &= \lim_{n \to \infty} (I + Rt / n)^n
+\end{align*}
+If we choose $n = 2^k$, then we can approximate $e^{Rt}$ using just $k$ matrix multiplications.
+
+\item To compute the stationary distributions, we just need to solve the following equations
+\begin{align*}
+	v_k \pi_j &= \sum_i \pi_i q_{i, j} \\
+	\sum_j \pi_j &= 1
+\end{align*}
+This is rather a particularly tedious exercise than a hard one. The general strategy would be recursively compute $\pi_1, \dots \pi_{c}$ using the set of equations and express them in terms of $\pi_0$. Then, we use the second equation to solve for $\pi_0$.
+
+For $j = 0$,
+\begin{align*}
+	\lambda \pi_0 &= \mu \pi_1 \\
+	\implies \pi_1 &= \frac{\lambda}{\mu} \pi_0
+\end{align*}
+When $j = 1$,
+\begin{align*}
+	(\lambda + \mu) \pi_1 &= 2 \mu \pi_2 + \lambda \pi_0 \\
+	\implies \pi_2 &= \frac{1}{2} \left( \frac{\lambda}{\mu} \right)^2 \pi_0
+\end{align*}
+When $j =2$,
+\begin{align*}
+	(\lambda + 2 \mu) \pi_2 &= 2 \mu \pi_3 + \lambda \pi_1 \\
+	\implies \pi_3 &= \frac{1}{3!} \left( \frac{\lambda}{\mu} \right)^3 \pi_0
+\end{align*}
+By repeating the argument for $j = 3, \dots, s - 1$, you can formally show via induction that the following holds true for $1 \leq k \leq s$,
+\begin{align*}
+	\pi_k &= \frac{1}{k!} \left(\frac{\lambda}{\mu}\right)^k \pi_0
+\end{align*}
+
+When $j = s$, this start to change
+\begin{align*}
+	(\lambda + s \mu) \pi_s &= s \mu \pi_{s+1} + \lambda \pi_{s-1} \\
+	\implies \pi_{s+1} &= \frac{1}{s \cdot s!} \left(\frac{\lambda}{\mu}\right)^{s+1} \pi_0
+\end{align*}
+When $j = s + 1$,
+\begin{align*}
+	(\lambda + s \mu) \pi_{s+1} &= s \mu \pi_{s + 2} + \lambda \pi_s \\
+	\implies \pi_{s + 2} &= \frac{1}{s^2 \cdot s!} \left(\frac{\lambda}{\mu}\right)^{s+2} \pi_0
+\end{align*}
+And we can show via induction for $s + 1 \leq k \leq c$,
+\begin{align*}
+	\pi_k &= \frac{1}{s^{k-s} s!} \left(\frac{\lambda}{\mu}\right)^k \pi_0
+\end{align*}
+
+Finally, to find $\pi_0$,
+\begin{align*}
+	\sum_{i=0}^c \pi_i &= 1 \\
+	\implies \pi_0 &=  \left( \sum_{j=0}^s \frac{1}{j!} \left(\frac{\lambda}{\mu}\right)^j  + \frac{1}{s!} \left(\frac{\lambda}{\mu}\right)^s \sum_{j=1}^{c-s} \left(\frac{\lambda}{s \mu} \right)^j \right)^{-1}
+\end{align*}
+
+The final answer is,
+\begin{align*}
+	\pi_0 &= \left( \sum_{j=0}^s \frac{1}{j!} \left(\frac{\lambda}{\mu}\right)^j  + \frac{1}{s!} \left(\frac{\lambda}{\mu}\right)^s \sum_{j=1}^{c-s} \left(\frac{\lambda}{s \mu} \right)^j \right)^{-1} \\
+	\pi_j &= \begin{cases}
+	\frac{1}{j!} \left(\frac{\lambda}{\mu}\right)^j \pi_0, & 1 \leq j \leq s \\
+	\frac{1}{s^{j-s} s!} \left(\frac{\lambda}{\mu}\right)^j \pi_0, & s + 1 \leq j \leq c
+	\end{cases}
+\end{align*}
+
+\item This is simply given by $\sum_{i=0}^{s-1} \pi_i$.
+
+\item Yes, the chain is reversible. To check this, we need verify that
+\begin{align*}
+	q_{i, j}^{*} &= \frac{\pi_j}{ \pi_i} q_{j, i} \stackrel{?}{=} q_{i, j}
+\end{align*}
+This equality is indeed true. And the algebra here is straightforward since we have done the hard work of computing the stationary distribution.
+
+\item As input, we get the transition matrix $Q$, initial state $X_0$ and total time $t$. Here is some pseudo-code implementing a sampler:
+\begin{verbatim}
+t = 0
+states = [X0]
+times = [0]
+
+while (t < T)
+    i = states[-1]    # current state
+    next_state = None
+    jump_time = Inf
+
+    for all states j such that Q[i, j] > 0
+        time_to_j = Exp(Q[i, j])
+        if (time_to_j < jump_time)
+            jump_time = time_to_j
+            next_state = j
+
+    states.append(next_state)
+    times.append(jump_time)
+    t = t + jump_time
+
+return(states, times)
+\end{verbatim}
+
+\item The data consists of the states $X_j$ and the times when transitions are made $t_j$. likelihood is given by
+\begin{align*}
+	\mathcal{L}(\lambda, \mu; x, t) &= \prod_{j=1}^{n-1} \frac{q_{x_{j-1}, x_j}}{v_{x_{j-1}}} v_{x_j} \exp \left\{ -v_{x_j} (t_{j+1} - t_j) \right\} \times \frac{q_{x_{n-1}, x_n}}{v_{x_{n-1}}} v_{n_j} \exp \left\{ -v_{n_j} (T - t_n) \right\}
+\end{align*}
+Let $N_T(i, j)$ be the number of transitions from state $i$ to state $j$ in time $T$. Let $A_T(i)$ be the total time spent in state $i$ until time $T$. This forms the minimal sufficient statistic for the observed data. So, we can re-arrange the terms in the likelihood as,
+\begin{align*}
+	\mathcal{L}(\lambda, \mu; x, t) &= \exp \left\{ -\sum_i A_T(i) v_i \right\} \prod_{j \neq i} q_{i, j}^{N_T(i, j)} \\
+	\implies \ell(\lambda, \mu) &= \log \mathcal{L} (\lambda, \mu; x, t) \\
+	&= -\sum_i A_T(i) v_i + \sum_{j \neq i} N_T(i, j) \log q_{i, j} \\
+	&= -\sum_{i=0}^s (\lambda + i \mu) A_T(i) - \sum_{i=s+1}^{c-1} (\lambda + s \mu) A_T(i) - s \mu A_T(c) \\
+	&\qquad + \sum_{i=0}^{c-1} N_T(i, i+1) \log q_{i, i+1} + \sum_{i=1}^c N_T(i, i-1) \log q_{i, i-1} \\
+	&= -C_1 \lambda - C_2 \mu + C_3 \log \lambda + C_4 \log \mu + C_5, \\
+	C_1 &= \sum_{i=0}^{c-1} A_T(i), \\
+	C_2 &= \sum_{i=0}^s i A_T(i) + s \sum_{i=s+1}^c A_T(i), \\
+	C_3 &= \sum_{i=0}^{c-1} N_T(i, i+1), \\
+	C_4 &= \sum_{i=1}^c N_T(i, i-1),
+\end{align*}
+and $C_5$ is a constant independent of $\lambda$ and $\mu$.
+
+Solving the score equations,
+\begin{align*}
+	\frac{\partial \ell}{ \partial \lambda} &= 0 \\
+	\implies \widehat{\lambda} &= \frac{C_3}{C_1} \\
+	\frac{\partial \ell}{ \partial \mu} &= 0 \\
+	\implies \widehat{\mu} &= \frac{C_4}{C_2}.
+\end{align*}
+And the Fisher information matrix for time $T$ is,
+\begin{align*}
+	\mathcal{I} &= \E \begin{bmatrix}
+	C_3 / \lambda^2 & 0 \\
+	0 & C_4 / \mu^2
+	\end{bmatrix}
+\end{align*}
+
+Adjusting for the total time $T$, and using Proposition 3.9 of Guttorp, the asymptotic variance of the MLE can be estimated as
+\begin{align*}
+	\widehat{\Cov}(\widehat{\lambda}) &= \frac{1 - A_T(c) / T}{\widehat{\lambda}} \\
+	\widehat{\Cov}(\widehat{\mu}) &= \frac{\sum_{i=1}^s i A_T(i) / T + s \sum_{i=s+1}^c A_T(i) / T }{\widehat{\mu}}
+\end{align*}
+This can be seen by applying Equation 3.144 and Equation 3.145 i.e.,
+\begin{align*}
+	N_t(i, j) / t &\stackrel{p}{\to} \pi_i q_{i, j} \\
+	A_t(i) / t &\stackrel{p}{\to} \pi_i
+\end{align*}
+
+Using these estimates alongside standard MLE theory, one can compute a 95\% confidence interval.
+
+
+\end{enumerate}
+
+
+
+
+
+\end{document}
+
